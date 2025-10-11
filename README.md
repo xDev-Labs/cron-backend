@@ -1,98 +1,306 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Cron Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS backend service for managing users and transactions with Supabase integration.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Quick Start
 
-## Description
+### Prerequisites
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Node.js 18+ or Bun
+- Supabase account and project
 
-## Project setup
+### Installation
+
+1. **Clone and install dependencies:**
 
 ```bash
-$ pnpm install
+git clone <repository-url>
+cd cron-backend
+bun install
 ```
 
-## Compile and run the project
+2. **Set up environment variables:**
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
+Edit `.env` with your Supabase credentials:
+
+```env
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+PORT=3000
+NODE_ENV=development
+```
+
+3. **Set up database:**
+   - Copy the SQL from `database/schema.sql`
+   - Run it in your Supabase SQL Editor
+
+4. **Start the server:**
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+bun run start:dev
 ```
 
-## Deployment
+The API will be available at `http://localhost:3000`
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 📚 API Documentation
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Base URL
+
+```
+http://localhost:3000
+```
+
+### Response Format
+
+All responses follow this structure:
+
+```json
+{
+  "success": boolean,
+  "message": string,
+  "data": object | array
+}
+```
+
+---
+
+## 👤 User Endpoints
+
+### Get User by ID
+
+```http
+GET /user/:id
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "User retrieved successfully",
+  "data": {
+    "user_id": "uuid",
+    "phone_number": "+1234567890",
+    "cron_id": "username",
+    "primary_address": "123 Main St",
+    "wallet_address": ["0x1234..."],
+    "avatar_url": "https://...",
+    "preferred_currency": "USD",
+    "local_currency": "USD",
+    "face_id_enabled": false,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:05:00Z"
+  }
+}
+```
+
+### Check Cron ID Availability
+
+```http
+GET /user/cron-id/check/:cronId
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Cron ID is available",
+  "data": {
+    "cronId": "username",
+    "available": true
+  }
+}
+```
+
+**Possible messages:**
+
+- `"Cron ID is available"` - Available to use
+- `"Cron ID is already taken"` - Already in use
+- `"Cron ID must be at least 3 characters long"` - Too short
+
+### Register Cron ID
+
+```http
+POST /user/cron-id/register
+```
+
+**Request Body:**
+
+```json
+{
+  "userId": "user-uuid",
+  "cronId": "username"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Cron ID registered successfully",
+  "data": {
+    // Updated user object
+  }
+}
+```
+
+---
+
+## 💰 Transaction Endpoints
+
+### Get Transaction by Hash
+
+```http
+GET /transaction/:hash
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Transaction retrieved successfully",
+  "data": {
+    "transaction_hash": "0x1234567890abcdef",
+    "sender_uid": "user-uuid-1",
+    "receiver_uid": "user-uuid-2",
+    "amount": 100.5,
+    "token": [
+      {
+        "amount": "100.50",
+        "token_address": "0x1234..."
+      }
+    ],
+    "chain_id": 1,
+    "status": "completed",
+    "created_at": "2024-01-01T00:00:00Z",
+    "completed_at": "2024-01-01T00:05:00Z"
+  }
+}
+```
+
+### Get User Transactions (with Pagination)
+
+```http
+GET /transaction/user/:userId?page=1&limit=10
+```
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10, max: 100)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "User transactions retrieved successfully",
+  "data": {
+    "userId": "user-uuid",
+    "transactions": [
+      // Array of transaction objects
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 25,
+      "totalPages": 3,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+---
+
+## 🗄️ Database Schema
+
+### Users Table
+
+| Field                | Type         | Description               |
+| -------------------- | ------------ | ------------------------- |
+| `user_id`            | UUID         | Primary key               |
+| `phone_number`       | VARCHAR(20)  | Unique phone number       |
+| `cron_id`            | VARCHAR(255) | Unique username           |
+| `primary_address`    | VARCHAR(255) | Unique address            |
+| `wallet_address`     | TEXT[]       | Array of wallet addresses |
+| `avatar_url`         | TEXT         | Optional avatar URL       |
+| `preferred_currency` | VARCHAR(3)   | Default: 'USD'            |
+| `local_currency`     | VARCHAR(3)   | Default: 'USD'            |
+| `face_id_enabled`    | BOOLEAN      | Default: false            |
+| `created_at`         | TIMESTAMP    | Auto-generated            |
+| `updated_at`         | TIMESTAMP    | Auto-updated              |
+
+### Transactions Table
+
+| Field              | Type          | Description                            |
+| ------------------ | ------------- | -------------------------------------- |
+| `transaction_hash` | TEXT          | Primary key                            |
+| `sender_uid`       | UUID          | Foreign key to users                   |
+| `receiver_uid`     | UUID          | Foreign key to users                   |
+| `amount`           | DECIMAL(20,8) | Transaction amount                     |
+| `token`            | tx_token[]    | Array of token objects                 |
+| `chain_id`         | INTEGER       | Blockchain chain ID                    |
+| `status`           | tx_status     | ENUM: 'pending', 'completed', 'failed' |
+| `created_at`       | TIMESTAMP     | Auto-generated                         |
+| `completed_at`     | TIMESTAMP     | Optional completion time               |
+
+### Custom Types
+
+```sql
+-- Token type
+CREATE TYPE tx_token AS (
+  amount NUMERIC(20,8),
+  token_address TEXT
+);
+
+-- Status enum
+CREATE TYPE tx_status AS ENUM ('pending', 'completed', 'failed');
+```
+
+---
+
+## 🛠️ Development
+
+### Available Scripts
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# Development
+bun run start:dev
+
+# Production build
+bun run build
+bun run start:prod
+
+# Testing
+bun run test
+bun run test:e2e
+
+# Linting
+bun run lint
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Project Structure
 
-## Resources
+```
+src/
+├── entities/          # TypeScript interfaces
+├── routes/
+│   ├── user/          # User-related endpoints
+│   └── transaction/   # Transaction-related endpoints
+├── supabase/          # Supabase configuration
+├── app.module.ts      # Main application module
+└── main.ts            # Application entry point
 
-Check out a few resources that may come in handy when working with NestJS:
+database/
+└── schema.sql         # Database schema
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
