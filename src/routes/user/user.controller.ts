@@ -1,7 +1,9 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
+  Body,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -28,6 +30,77 @@ export class UsersController {
         success: true,
         message: 'User retrieved successfully',
         data: user,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Route 1: Check if cron ID is available
+  @Get('cron-id/check/:cronId')
+  async checkCronIdAvailability(@Param('cronId') cronId: string) {
+    try {
+      const result = await this.usersService.checkCronIdAvailability(cronId);
+      return {
+        success: true,
+        message: result.message,
+        data: {
+          cronId,
+          available: result.available,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Route 2: Register cron ID for a user
+  @Post('cron-id/register')
+  async registerCronId(@Body() body: { userId: string; cronId: string }) {
+    try {
+      const { userId, cronId } = body;
+
+      if (!userId || !cronId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'userId and cronId are required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.usersService.registerCronId(userId, cronId);
+
+      if (!result.success) {
+        throw new HttpException(
+          {
+            success: false,
+            message: result.message,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        success: true,
+        message: result.message,
+        data: result.user,
       };
     } catch (error) {
       if (error instanceof HttpException) {
