@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
 import { UsersModule } from './routes/user/user.module';
+import { TransactionModule } from './routes/transaction/transaction.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { UsersModule } from './routes/user/user.module';
     }),
     SupabaseModule,
     UsersModule,
+    TransactionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
