@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -29,6 +30,67 @@ export class TransactionController {
         success: true,
         message: 'Transaction retrieved successfully',
         data: transaction,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('user/:userId')
+  async getTransactionsByUserId(
+    @Param('userId') userId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    try {
+      // Parse and validate pagination parameters
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+
+      // Validate pagination parameters
+      if (pageNum < 1) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Page number must be greater than 0',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (limitNum < 1 || limitNum > 100) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Limit must be between 1 and 100',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.transactionService.getTransactionsByUserId(
+        userId,
+        pageNum,
+        limitNum,
+      );
+
+      return {
+        success: true,
+        message: 'User transactions retrieved successfully',
+        data: {
+          userId,
+          transactions: result.transactions,
+          pagination: result.pagination,
+        },
       };
     } catch (error) {
       if (error instanceof HttpException) {
