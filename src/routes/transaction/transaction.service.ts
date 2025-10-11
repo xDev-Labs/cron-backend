@@ -26,4 +26,20 @@ export class TransactionService {
 
     return data;
   }
+
+  async getTransactionsByUserId(userId: string): Promise<Transaction[]> {
+    const supabase = this.supabaseService.getClient();
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .or(`sender_uid.eq.${userId},receiver_uid.eq.${userId}`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to get transactions for user: ${error.message}`);
+    }
+
+    return data || [];
+  }
 }

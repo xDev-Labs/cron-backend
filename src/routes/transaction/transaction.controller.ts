@@ -43,4 +43,29 @@ export class TransactionController {
       );
     }
   }
+
+  @Get('user/:userId')
+  async getTransactionsByUserId(@Param('userId') userId: string) {
+    try {
+      const transactions =
+        await this.transactionService.getTransactionsByUserId(userId);
+      return {
+        success: true,
+        message: 'User transactions retrieved successfully',
+        data: {
+          userId,
+          transactions,
+          count: transactions.length,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
