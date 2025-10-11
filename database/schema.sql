@@ -47,6 +47,38 @@ CREATE TRIGGER update_users_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- =====================================================
+-- 5. CREATE CUSTOM TYPES
+-- =====================================================
+CREATE TYPE tx_token AS (
+  amount NUMERIC(20,8),
+  token_address TEXT
+);
 
+CREATE TYPE tx_status AS ENUM ('pending', 'completed', 'failed');
 
+-- =====================================================
+-- 6. CREATE TRANSACTIONS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS transactions (
+  transaction_hash TEXT PRIMARY KEY,
+  sender_uid UUID NOT NULL REFERENCES users(user_id),
+  receiver_uid UUID NOT NULL REFERENCES users(user_id),
+  amount DECIMAL(20,8) NOT NULL,
+  token tx_token[] NOT NULL, -- Array of tx_token type
+  chain_id INTEGER NOT NULL,
+  status tx_status NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- =====================================================
+-- 7. CREATE INDEXES FOR TRANSACTIONS
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_transactions_sender_uid ON transactions(sender_uid);
+CREATE INDEX IF NOT EXISTS idx_transactions_receiver_uid ON transactions(receiver_uid);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_chain_id ON transactions(chain_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_transactions_completed_at ON transactions(completed_at);
 
