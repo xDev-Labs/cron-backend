@@ -8,9 +8,9 @@
 CREATE TABLE IF NOT EXISTS users (
   user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   phone_number VARCHAR(20) UNIQUE NOT NULL,
-  cron_id VARCHAR(255) UNIQUE NOT NULL,
-  primary_address VARCHAR(255) UNIQUE NOT NULL,
-  wallet_address TEXT[] UNIQUE NOT NULL,
+  cron_id VARCHAR(255) UNIQUE,
+  primary_address VARCHAR(255) UNIQUE,
+  wallet_address TEXT[] UNIQUE,
   avatar_url TEXT,
   preferred_currency VARCHAR(3) NOT NULL DEFAULT 'USD',
   local_currency VARCHAR(3) NOT NULL DEFAULT 'USD',

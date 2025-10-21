@@ -67,6 +67,8 @@ export class UsersService {
     userId: string,
     cronId: string,
   ): Promise<{ success: boolean; message: string; user?: User }> {
+    console.log('cronId', cronId);
+    console.log('userId', userId);
     // First, check if cron ID is still available
     const availabilityCheck = await this.checkCronIdAvailability(cronId);
 
@@ -105,7 +107,7 @@ export class UsersService {
     isNewUser: boolean;
   }> {
     const supabase = this.supabaseService.getClient();
-
+    console.log('phoneNumber', phoneNumber);
     // First, check if user already exists with this phone number
     const { data: existingUser, error: findError } = await supabase
       .from('users')
@@ -127,14 +129,8 @@ export class UsersService {
       };
     }
 
-    // Generate a new UUID for the user
-    const { data: uuidData, error: uuidError } =
-      await supabase.rpc('gen_random_uuid');
-    if (uuidError) {
-      throw new Error(`Failed to generate UUID: ${uuidError.message}`);
-    }
-
-    const userId = uuidData;
+    // Generate a new UUID for the user using crypto.randomUUID()
+    const userId = crypto.randomUUID();
 
     // Create new user with minimal required fields
     const { data: newUser, error: createError } = await supabase
@@ -142,9 +138,9 @@ export class UsersService {
       .insert({
         user_id: userId,
         phone_number: phoneNumber,
-        cron_id: '', // Will be set during onboarding
-        primary_address: '', // Will be set during onboarding
-        wallet_address: [], // Will be set during onboarding
+        cron_id: null, // Will be set during onboarding
+        primary_address: null, // Will be set during onboarding
+        wallet_address: [], // Empty array is allowed
         preferred_currency: 'USD',
         local_currency: 'USD',
         face_id_enabled: false,
@@ -169,7 +165,7 @@ export class UsersService {
     updateData: Partial<User>,
   ): Promise<{ success: boolean; message: string; user?: User }> {
     const supabase = this.supabaseService.getClient();
-
+    console.log('updateData', updateData);
     // Remove user_id and timestamps from update data to prevent modification
     const { user_id, created_at, updated_at, ...allowedUpdateData } =
       updateData;
