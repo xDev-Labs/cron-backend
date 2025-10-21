@@ -6,8 +6,8 @@ A NestJS backend service for managing users and transactions with Supabase integ
 
 ### Prerequisites
 
-- Node.js 18+ or Bun
-- Supabase account and project
+- Node.js 18+ or Bun.
+- Supabase account and project.
 
 ### Installation
 
