@@ -1,10 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { User } from '../../entities/user.entity';
+import { Encoding, SolanaService } from 'src/solana/solana.service';
+import { Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  private readonly feePayer: Keypair;
+
+  constructor(private readonly supabaseService: SupabaseService, private readonly solanaService: SolanaService) {
+    this.feePayer = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_SERVER_WALLET_PRIVATE_KEY!));
+  }
 
   async getUserById(userId: string): Promise<User | null> {
     const supabase = this.supabaseService.getClient();
@@ -67,8 +74,6 @@ export class UsersService {
     userId: string,
     cronId: string,
   ): Promise<{ success: boolean; message: string; user?: User }> {
-    console.log('cronId', cronId);
-    console.log('userId', userId);
     // First, check if cron ID is still available
     const availabilityCheck = await this.checkCronIdAvailability(cronId);
 
@@ -107,7 +112,6 @@ export class UsersService {
     isNewUser: boolean;
   }> {
     const supabase = this.supabaseService.getClient();
-    console.log('phoneNumber', phoneNumber);
     // First, check if user already exists with this phone number
     const { data: existingUser, error: findError } = await supabase
       .from('users')
@@ -132,7 +136,9 @@ export class UsersService {
     // Generate a new UUID for the user using crypto.randomUUID()
     const userId = crypto.randomUUID();
 
-    // Create new user with minimal required fields
+
+
+    // // Create new user with minimal required fields
     const { data: newUser, error: createError } = await supabase
       .from('users')
       .insert({
@@ -165,7 +171,6 @@ export class UsersService {
     updateData: Partial<User>,
   ): Promise<{ success: boolean; message: string; user?: User }> {
     const supabase = this.supabaseService.getClient();
-    console.log('updateData', updateData);
     // Remove user_id and timestamps from update data to prevent modification
     const { user_id, created_at, updated_at, ...allowedUpdateData } =
       updateData;
@@ -197,6 +202,80 @@ export class UsersService {
       success: true,
       message: 'User updated successfully',
       user: data,
+    };
+  }
+
+  async onboardUser(
+    userId: string,
+    walletAddress: string,
+    smartWalletAddress: string,
+    encodedTransaction: string,
+    avatarUrl: string,
+    username: string
+  ): Promise<{ success: boolean; message: string; user?: User; signature?: string }> {
+    console.log('\n=== ONBOARD USER DEBUG ===');
+    console.log('User ID:', userId);
+    console.log('Wallet Address:', walletAddress);
+    console.log('Smart Wallet Address:', smartWalletAddress);
+    console.log('Username:', username);
+    console.log('Avatar URL:', avatarUrl);
+    console.log('Transaction length:', encodedTransaction.length);
+
+    // 1. Check username availability
+    const availabilityCheck = await this.checkCronIdAvailability(username);
+    if (!availabilityCheck.available) {
+      return {
+        success: false,
+        message: availabilityCheck.message,
+      };
+    }
+
+    // 2. Sign and send transaction
+    console.log('\n--- Signing and sending transaction ---');
+    console.log('Server fee payer:', this.feePayer.publicKey.toBase58());
+
+    const signature = await this.solanaService.signAndSendTransaction(
+      encodedTransaction,
+      Encoding.BASE64,
+      this.feePayer
+    );
+
+    console.log('\nTransaction signature:', signature);
+
+
+    // 3. Update user with onboarding data
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        primary_address: smartWalletAddress,
+        wallet_address: [smartWalletAddress],
+        cron_id: username,
+        avatar_url: avatarUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+      throw new Error(`Failed to onboard user: ${error.message}`);
+    }
+
+    console.log('User onboarded successfully:', data);
+    console.log('=== END ONBOARD USER DEBUG ===\n');
+
+    return {
+      success: true,
+      message: 'User onboarded successfully',
+      user: data,
+      signature,
     };
   }
 }

@@ -24,7 +24,9 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.75.0",
+    "bs58": "^6.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

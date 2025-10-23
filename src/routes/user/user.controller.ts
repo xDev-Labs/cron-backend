@@ -12,7 +12,7 @@ import { UsersService } from './user.service';
 
 @Controller('user')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -184,6 +184,71 @@ export class UsersController {
         success: true,
         message: result.message,
         data: result.user,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Route 5: Onboard user with wallet, username, avatar, and transaction
+  @Post('onboard')
+  async onboardUser(@Body() body: {
+    userId: string;
+    walletAddress: string;
+    smartWalletAddress: string;
+    encodedTransaction: string;
+    avatarUrl: string;
+    username: string;
+  }) {
+    try {
+      const { userId, walletAddress, smartWalletAddress, encodedTransaction, avatarUrl, username } = body;
+
+      // Validate required parameters
+      if (!userId || !walletAddress || !smartWalletAddress || !encodedTransaction || !avatarUrl || !username) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'All parameters are required: userId, walletAddress, encodedTransaction, avatarUrl, username',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.usersService.onboardUser(
+        userId,
+        walletAddress,
+        smartWalletAddress,
+        encodedTransaction,
+        avatarUrl,
+        username
+      );
+
+      if (!result.success) {
+        throw new HttpException(
+          {
+            success: false,
+            message: result.message,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        success: true,
+        message: result.message,
+        data: {
+          user: result.user,
+          signature: result.signature,
+        },
       };
     } catch (error) {
       if (error instanceof HttpException) {
