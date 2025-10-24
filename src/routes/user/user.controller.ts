@@ -7,7 +7,10 @@ import {
   Body,
   HttpException,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './user.service';
 
 @Controller('user')
@@ -278,6 +281,84 @@ export class UsersController {
         data: {
           user: result.user,
           signature: result.signature,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Route 6: Update user avatar
+  @Put(':id/avatar')
+  @UseInterceptors(FileInterceptor('avatar'))
+  async updateAvatar(
+    @Param('id') userId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    try {
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User ID is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!file) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Avatar file is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+
+      if (file.size === 0) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Uploaded file is empty (0 bytes)',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.usersService.updateAvatar(
+        userId,
+        file.buffer,
+        file.originalname,
+      );
+
+
+      if (!result.success) {
+        throw new HttpException(
+          {
+            success: false,
+            message: result.message,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        success: true,
+        message: result.message,
+        data: {
+          user: result.user,
+          avatarUrl: result.avatarUrl,
         },
       };
     } catch (error) {

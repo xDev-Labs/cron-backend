@@ -236,24 +236,13 @@ export class UsersService {
     smartWalletAddress: string,
     encodedTransaction: string,
   ): Promise<{ success: boolean; message: string; user?: User; signature?: string }> {
-    console.log('\n=== ONBOARD USER DEBUG ===');
-    console.log('User ID:', userId);
-    console.log('Wallet Address:', walletAddress);
-    console.log('Smart Wallet Address:', smartWalletAddress);
-    console.log('Transaction length:', encodedTransaction.length);
 
-    // Sign and send transaction
-    console.log('\n--- Signing and sending transaction ---');
-    console.log('Server fee payer:', this.feePayer.publicKey.toBase58());
 
     const signature = await this.solanaService.signAndSendTransaction(
       encodedTransaction,
       Encoding.BASE64,
       this.feePayer
     );
-
-    console.log('\nTransaction signature:', signature);
-
 
     // 3. Update user with onboarding data
     const supabase = this.supabaseService.getClient();
@@ -278,14 +267,95 @@ export class UsersService {
       throw new Error(`Failed to onboard user: ${error.message}`);
     }
 
-    console.log('User onboarded successfully:', data);
-    console.log('=== END ONBOARD USER DEBUG ===\n');
-
     return {
       success: true,
       message: 'User onboarded successfully',
       user: data,
       signature,
     };
+  }
+
+  async updateAvatar(
+    userId: string,
+    fileBuffer: Buffer,
+    originalName: string,
+  ): Promise<{ success: boolean; message: string; user?: User; avatarUrl?: string }> {
+    try {
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return {
+          success: false,
+          message: 'No file data received',
+        };
+      }
+      
+      // Validate file type
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      const fileExtension = originalName.split('.').pop()?.toLowerCase();
+
+      if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
+        return {
+          success: false,
+          message: 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP files are allowed.',
+        };
+      }
+
+      // Validate file size (10MB = 10 * 1024 * 1024 bytes)
+      const maxSize = 10 * 1024 * 1024;
+      if (fileBuffer.length > maxSize) {
+        return {
+          success: false,
+          message: 'File size too large. Maximum size is 10MB.',
+        };
+      }
+
+      // Upload to Supabase storage
+      const uploadResult = await this.supabaseService.uploadAvatar(
+        fileBuffer,
+        userId,
+        fileExtension,
+      );
+
+      if (!uploadResult.success) {
+        return {
+          success: false,
+          message: uploadResult.error || 'Failed to upload avatar',
+        };
+      }
+
+      // Update user's avatar_url in database
+      const supabase = this.supabaseService.getClient();
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          avatar_url: uploadResult.url,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return {
+            success: false,
+            message: 'User not found',
+          };
+        }
+        throw new Error(`Failed to update user avatar: ${error.message}`);
+      }
+
+      return {
+        success: true,
+        message: 'Avatar updated successfully',
+        user: data,
+        avatarUrl: uploadResult.url,
+      };
+    } catch (error) {
+      console.error('Avatar update error:', error);
+      return {
+        success: false,
+        message: `Failed to update avatar: ${error.message}`,
+      };
+    }
   }
 }
