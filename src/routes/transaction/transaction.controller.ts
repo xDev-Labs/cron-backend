@@ -12,7 +12,7 @@ import { TransactionService } from './transaction.service';
 
 @Controller('transaction')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(private readonly transactionService: TransactionService) { }
 
   @Get(':hash')
   async getTransactionByHash(@Param('hash') hash: string) {
@@ -86,7 +86,6 @@ export class TransactionController {
         limitNum,
         receiver,
       );
-      // console.log(result.transactions);
       return {
         success: true,
         message: 'User transactions retrieved successfully',

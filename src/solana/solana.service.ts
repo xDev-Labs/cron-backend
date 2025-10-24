@@ -55,7 +55,6 @@ export class SolanaService {
       return VersionedTransaction.deserialize(buffer);
     } catch (error) {
       // If that fails, it's a legacy transaction
-      console.log('Detected legacy transaction format');
       return Transaction.from(buffer);
     }
   }
@@ -65,15 +64,10 @@ export class SolanaService {
     encoding: Encoding,
     feePayer: Keypair
   ): Promise<string> {
-    console.log('=== SIGN AND SEND TRANSACTION ===');
 
     const transaction = this.decodeTransaction(encodedTransaction, encoding);
 
     if (transaction instanceof Transaction) {
-      // Legacy transaction
-      console.log('Processing legacy transaction');
-      console.log('Fee payer in transaction:', transaction.feePayer?.toBase58());
-      console.log('Server fee payer:', feePayer.publicKey.toBase58());
 
       // Verify fee payer matches
       if (!transaction.feePayer || !transaction.feePayer.equals(feePayer.publicKey)) {
@@ -86,16 +80,8 @@ export class SolanaService {
       const { blockhash } = await this.connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
 
-      console.log('Existing signatures:', transaction.signatures.map((sig, i) =>
-        `[${i}]: ${sig.signature ? bs58.encode(sig.signature) : 'empty'} - ${sig.publicKey.toBase58()}`
-      ));
-
       // Sign the transaction
       transaction.sign(feePayer);
-
-      console.log('After signing:', transaction.signatures.map((sig, i) =>
-        `[${i}]: ${sig.signature ? bs58.encode(sig.signature) : 'empty'} - ${sig.publicKey.toBase58()}`
-      ));
 
       // Send transaction
       try {
@@ -107,7 +93,6 @@ export class SolanaService {
           }
         );
 
-        console.log('Transaction sent successfully:', signature);
         return signature;
       } catch (error) {
         console.error('=== TRANSACTION ERROR ===');
@@ -124,18 +109,6 @@ export class SolanaService {
 
     } else {
       // Versioned transaction
-      console.log('Processing versioned transaction');
-
-      // Log original transaction details
-      console.log('Original transaction details:');
-      console.log('Message version:', transaction.message.version);
-      console.log('Static accounts:', transaction.message.staticAccountKeys.map((key, i) =>
-        `[${i}]: ${key.toBase58()}`
-      ));
-      console.log('Number of required signatures:', transaction.message.header.numRequiredSignatures);
-      console.log('Original signatures:', transaction.signatures.map((sig, i) =>
-        `[${i}]: ${sig ? bs58.encode(sig) : 'empty'}`
-      ));
 
       // For versioned transactions, we need to check if fee payer matches
       const feePayer0 = transaction.message.staticAccountKeys[0];
@@ -147,15 +120,9 @@ export class SolanaService {
 
       // Clone the transaction and sign it directly without recompiling
       // This preserves the account order and prevents signature invalidation
-      console.log('\nSigning existing transaction structure...');
 
       try {
         transaction.sign([feePayer]);
-
-        console.log('\nAfter signing:', transaction.signatures.map((sig, i) =>
-          `[${i}]: ${sig ? bs58.encode(sig) : 'empty'}`
-        ));
-
         // Send transaction
         const signature = await this.connection.sendRawTransaction(
           transaction.serialize(),
@@ -166,10 +133,6 @@ export class SolanaService {
         );
 
         let confirmation = await this.connection.confirmTransaction(signature);
-        console.log('Transaction confirmed:', confirmation);
-
-
-        console.log('Transaction sent successfully:', signature);
         return signature;
 
       } catch (error) {
