@@ -240,18 +240,16 @@ export class UsersController {
     walletAddress: string;
     smartWalletAddress: string;
     encodedTransaction: string;
-    avatarUrl: string;
-    username: string;
   }) {
     try {
-      const { userId, walletAddress, smartWalletAddress, encodedTransaction, avatarUrl, username } = body;
+      const { userId, walletAddress, smartWalletAddress, encodedTransaction } = body;
 
       // Validate required parameters
-      if (!userId || !walletAddress || !smartWalletAddress || !encodedTransaction || !avatarUrl || !username) {
+      if (!userId || !walletAddress || !smartWalletAddress || !encodedTransaction) {
         throw new HttpException(
           {
             success: false,
-            message: 'All parameters are required: userId, walletAddress, encodedTransaction, avatarUrl, username',
+            message: 'All parameters are required: userId, walletAddress, encodedTransaction',
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -262,8 +260,6 @@ export class UsersController {
         walletAddress,
         smartWalletAddress,
         encodedTransaction,
-        avatarUrl,
-        username
       );
 
       if (!result.success) {

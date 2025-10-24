@@ -235,27 +235,14 @@ export class UsersService {
     walletAddress: string,
     smartWalletAddress: string,
     encodedTransaction: string,
-    avatarUrl: string,
-    username: string
   ): Promise<{ success: boolean; message: string; user?: User; signature?: string }> {
     console.log('\n=== ONBOARD USER DEBUG ===');
     console.log('User ID:', userId);
     console.log('Wallet Address:', walletAddress);
     console.log('Smart Wallet Address:', smartWalletAddress);
-    console.log('Username:', username);
-    console.log('Avatar URL:', avatarUrl);
     console.log('Transaction length:', encodedTransaction.length);
 
-    // 1. Check username availability
-    const availabilityCheck = await this.checkCronIdAvailability(username);
-    if (!availabilityCheck.available) {
-      return {
-        success: false,
-        message: availabilityCheck.message,
-      };
-    }
-
-    // 2. Sign and send transaction
+    // Sign and send transaction
     console.log('\n--- Signing and sending transaction ---');
     console.log('Server fee payer:', this.feePayer.publicKey.toBase58());
 
@@ -275,8 +262,6 @@ export class UsersService {
       .update({
         primary_address: smartWalletAddress,
         wallet_address: [smartWalletAddress],
-        cron_id: username,
-        avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId)
