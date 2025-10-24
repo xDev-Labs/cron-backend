@@ -15,7 +15,7 @@ import { UsersService } from './user.service';
 
 @Controller('user')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -53,6 +53,40 @@ export class UsersController {
   async getUserByPhoneNumber(@Param('phoneNumber') phoneNumber: string) {
     try {
       const user = await this.usersService.getUserByPhoneNumber(phoneNumber);
+
+      if (!user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User not found',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      return {
+        success: true,
+        message: 'User retrieved successfully',
+        data: user,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('address/:address')
+  async getUserByAddress(@Param('address') address: string) {
+    try {
+      const user = await this.usersService.getUserByAddress(address);
 
       if (!user) {
         throw new HttpException(
@@ -238,21 +272,31 @@ export class UsersController {
 
   // Route 5: Onboard user with wallet, username, avatar, and transaction
   @Post('onboard')
-  async onboardUser(@Body() body: {
-    userId: string;
-    walletAddress: string;
-    smartWalletAddress: string;
-    encodedTransaction: string;
-  }) {
+  async onboardUser(
+    @Body()
+    body: {
+      userId: string;
+      walletAddress: string;
+      smartWalletAddress: string;
+      encodedTransaction: string;
+    },
+  ) {
     try {
-      const { userId, walletAddress, smartWalletAddress, encodedTransaction } = body;
+      const { userId, walletAddress, smartWalletAddress, encodedTransaction } =
+        body;
 
       // Validate required parameters
-      if (!userId || !walletAddress || !smartWalletAddress || !encodedTransaction) {
+      if (
+        !userId ||
+        !walletAddress ||
+        !smartWalletAddress ||
+        !encodedTransaction
+      ) {
         throw new HttpException(
           {
             success: false,
-            message: 'All parameters are required: userId, walletAddress, encodedTransaction',
+            message:
+              'All parameters are required: userId, walletAddress, encodedTransaction',
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -325,7 +369,6 @@ export class UsersController {
         );
       }
 
-
       if (file.size === 0) {
         throw new HttpException(
           {
@@ -341,7 +384,6 @@ export class UsersController {
         file.buffer,
         file.originalname,
       );
-
 
       if (!result.success) {
         throw new HttpException(

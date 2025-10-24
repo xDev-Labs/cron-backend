@@ -9,8 +9,13 @@ import bs58 from 'bs58';
 export class UsersService {
   private readonly feePayer: Keypair;
 
-  constructor(private readonly supabaseService: SupabaseService, private readonly solanaService: SolanaService) {
-    this.feePayer = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_SERVER_WALLET_PRIVATE_KEY!));
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly solanaService: SolanaService,
+  ) {
+    this.feePayer = Keypair.fromSecretKey(
+      bs58.decode(process.env.SOLANA_SERVER_WALLET_PRIVATE_KEY!),
+    );
   }
 
   async getUserById(userId: string): Promise<User | null> {
@@ -52,6 +57,25 @@ export class UsersService {
         return null; // User not found
       }
       throw new Error(`Failed to get user by phone number: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async getUserByAddress(address: string): Promise<User | null> {
+    const supabase = this.supabaseService.getClient();
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('primary_address', address)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // User not found
+      }
+      throw new Error(`Failed to get user by address: ${error.message}`);
     }
 
     return data;
@@ -161,8 +185,6 @@ export class UsersService {
     // Generate a new UUID for the user using crypto.randomUUID()
     const userId = crypto.randomUUID();
 
-
-
     // // Create new user with minimal required fields
     const { data: newUser, error: createError } = await supabase
       .from('users')
@@ -235,13 +257,16 @@ export class UsersService {
     walletAddress: string,
     smartWalletAddress: string,
     encodedTransaction: string,
-  ): Promise<{ success: boolean; message: string; user?: User; signature?: string }> {
-
-
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user?: User;
+    signature?: string;
+  }> {
     const signature = await this.solanaService.signAndSendTransaction(
       encodedTransaction,
       Encoding.BASE64,
-      this.feePayer
+      this.feePayer,
     );
 
     // 3. Update user with onboarding data
@@ -279,7 +304,12 @@ export class UsersService {
     userId: string,
     fileBuffer: Buffer,
     originalName: string,
-  ): Promise<{ success: boolean; message: string; user?: User; avatarUrl?: string }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user?: User;
+    avatarUrl?: string;
+  }> {
     try {
       if (!fileBuffer || fileBuffer.length === 0) {
         return {
@@ -287,7 +317,7 @@ export class UsersService {
           message: 'No file data received',
         };
       }
-      
+
       // Validate file type
       const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
       const fileExtension = originalName.split('.').pop()?.toLowerCase();
@@ -295,7 +325,8 @@ export class UsersService {
       if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
         return {
           success: false,
-          message: 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP files are allowed.',
+          message:
+            'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP files are allowed.',
         };
       }
 
