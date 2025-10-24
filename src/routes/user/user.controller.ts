@@ -46,6 +46,40 @@ export class UsersController {
     }
   }
 
+  @Get('phone/:phoneNumber')
+  async getUserByPhoneNumber(@Param('phoneNumber') phoneNumber: string) {
+    try {
+      const user = await this.usersService.getUserByPhoneNumber(phoneNumber);
+
+      if (!user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User not found',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      return {
+        success: true,
+        message: 'User retrieved successfully',
+        data: user,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   // Route 1: Check if cron ID is available
   @Get('cron-id/check/:cronId')
   async checkCronIdAvailability(@Param('cronId') cronId: string) {

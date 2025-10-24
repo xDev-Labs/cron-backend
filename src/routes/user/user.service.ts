@@ -32,6 +32,31 @@ export class UsersService {
     return data;
   }
 
+  async getUserByPhoneNumber(phoneNumber: string): Promise<{
+    user_id: string;
+    phone_number: string;
+    cron_id: string;
+    primary_address: string;
+    avatar_url?: string;
+  } | null> {
+    const supabase = this.supabaseService.getClient();
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('user_id, phone_number, cron_id, primary_address, avatar_url')
+      .eq('phone_number', phoneNumber)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // User not found
+      }
+      throw new Error(`Failed to get user by phone number: ${error.message}`);
+    }
+
+    return data;
+  }
+
   async checkCronIdAvailability(
     cronId: string,
   ): Promise<{ available: boolean; message: string }> {
