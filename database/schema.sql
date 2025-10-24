@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_number VARCHAR(20) UNIQUE NOT NULL,
   cron_id VARCHAR(255) UNIQUE,
   primary_address VARCHAR(255) UNIQUE,
-  wallet_address TEXT[] UNIQUE,
+  wallet_address TEXT[],
   avatar_url TEXT,
   preferred_currency VARCHAR(3) NOT NULL DEFAULT 'USD',
   local_currency VARCHAR(3) NOT NULL DEFAULT 'USD',
