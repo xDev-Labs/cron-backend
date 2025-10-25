@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { User } from '../../entities/user.entity';
-import { Encoding, SolanaService } from 'src/solana/solana.service';
+import { Encoding, SolanaService, Token } from 'src/solana/solana.service';
 import { Keypair, TransactionConfirmationStatus } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { TransactionService } from '../transaction/transaction.service';
@@ -420,9 +420,7 @@ export class UsersService {
         signature,
       };
     } else {
-
-
-      const txn = await this.transactionService.createTransaction({
+      await this.transactionService.createTransaction({
         transaction_hash: signature,
         sender_uid: senderUid,
         receiver_uid: receiverUid,
@@ -437,5 +435,14 @@ export class UsersService {
         signature,
       };
     }
+  }
+
+
+  async getTokensByUserId(userId: string): Promise<Token[]> {
+    const user = await this.getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return this.solanaService.getTokensByAddress(user.primary_address);
   }
 }

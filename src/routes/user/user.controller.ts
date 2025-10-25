@@ -465,4 +465,29 @@ export class UsersController {
       );
     }
   }
+
+
+  // Route 8: Get tokens by user ID
+  @Get(':id/tokens')
+  async getTokensByUserId(@Param('id') userId: string) {
+    try {
+      const tokens = await this.usersService.getTokensByUserId(userId);
+      return {
+        success: true,
+        message: 'Tokens retrieved successfully',
+        data: tokens,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
