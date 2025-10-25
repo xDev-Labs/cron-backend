@@ -416,4 +416,53 @@ export class UsersController {
       );
     }
   }
+
+  // Route 7: Transfer SPL token
+  @Post('transfer-spl')
+  async transferSpl(@Body() body: { encodedTransaction: string }) {
+    try {
+      const { encodedTransaction } = body;
+
+      if (!encodedTransaction) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'encodedTransaction is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.usersService.transferSpl(encodedTransaction);
+
+      if (!result.success) {
+        throw new HttpException(
+          {
+            success: false,
+            message: result.message,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        success: true,
+        message: result.message,
+        data: {
+          signature: result.signature,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
