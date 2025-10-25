@@ -14,6 +14,15 @@ import {
   RpcResponseAndContext,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, AccountLayout } from '@solana/spl-token';
+
+export interface Token {
+  mintAddr: string;
+  balance: string;
+  name: string;
+  symbol: string;
+  valueInUsd: number;
+}
 
 export interface DecompiledTransaction {
   accounts: PublicKey[];
@@ -154,6 +163,39 @@ export class SolanaService {
 
   async getTxnStatus(signature: string): Promise<RpcResponseAndContext<SignatureStatus | null>> {
     return await this.connection.getSignatureStatus(signature);
+  }
+
+  async getTokensByAddress(address: string): Promise<Token[]> {
+    let tokens = await this.connection.getTokenAccountsByOwner(new PublicKey(address), { programId: TOKEN_PROGRAM_ID });
+    let tokens2022 = await this.connection.getTokenAccountsByOwner(new PublicKey(address), { programId: TOKEN_2022_PROGRAM_ID });
+
+    const allTokens: Token[] = [];
+
+    // Process standard tokens
+    for (const token of tokens.value) {
+      const accountInfo = AccountLayout.decode(token.account.data);
+      allTokens.push({
+        mintAddr: accountInfo.mint.toBase58(),
+        balance: accountInfo.amount.toString(),
+        name: 'Test',
+        symbol: 'TEST',
+        valueInUsd: 0,
+      });
+    }
+
+    // Process Token-2022 tokens
+    for (const token of tokens2022.value) {
+      const accountInfo = AccountLayout.decode(token.account.data);
+      allTokens.push({
+        mintAddr: accountInfo.mint.toBase58(),
+        balance: accountInfo.amount.toString(),
+        name: 'Test 2022',
+        symbol: 'TEST2022',
+        valueInUsd: 0,
+      });
+    }
+
+    return allTokens;
   }
 
 }
