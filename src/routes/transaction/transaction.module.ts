@@ -7,5 +7,6 @@ import { SupabaseModule } from '../../supabase/supabase.module';
   imports: [SupabaseModule],
   controllers: [TransactionController],
   providers: [TransactionService],
+  exports: [TransactionService],
 })
-export class TransactionModule {}
+export class TransactionModule { }

@@ -9,6 +9,9 @@ import {
   SendTransactionError,
   Transaction,
   Keypair,
+  TransactionConfirmationStatus,
+  SignatureStatus,
+  RpcResponseAndContext,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
 
@@ -132,7 +135,6 @@ export class SolanaService {
           }
         );
 
-        let confirmation = await this.connection.confirmTransaction(signature);
         return signature;
 
       } catch (error) {
@@ -148,6 +150,10 @@ export class SolanaService {
         throw error;
       }
     }
+  }
+
+  async getTxnStatus(signature: string): Promise<RpcResponseAndContext<SignatureStatus | null>> {
+    return await this.connection.getSignatureStatus(signature);
   }
 
 }
