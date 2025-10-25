@@ -389,4 +389,21 @@ export class UsersService {
       };
     }
   }
+
+  async transferSpl(
+    encodedTransaction: string,
+  ): Promise<{ success: boolean; message: string; signature?: string }> {
+    console.log('encodedTransaction: ', encodedTransaction);
+    const signature = await this.solanaService.signAndSendTransaction(
+      encodedTransaction,
+      Encoding.BASE64,
+      this.feePayer
+    );
+
+    return {
+      success: true,
+      message: 'SPL token transfer completed successfully',
+      signature,
+    };
+  }
 }
