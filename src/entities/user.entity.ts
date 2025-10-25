@@ -8,6 +8,7 @@ export interface User {
   preferred_currency: string; // Not Null, Default: 'USD'
   local_currency: string; // Not Null, Default: 'USD'
   face_id_enabled: boolean; // BOOLEAN, Not Null, Default: false
+  expo_push_token?: string; // TEXT
   created_at: string; // TIMESTAMP, Not Null, Default: CURRENT_TIMESTAMP
   updated_at?: string; // TIMESTAMP
 }
@@ -21,6 +22,7 @@ export interface CreateUserDto {
   preferred_currency?: string;
   local_currency?: string;
   face_id_enabled?: boolean;
+  expo_push_token?: string; // TEXT
 }
 
 export interface UpdateUserDto {
@@ -32,4 +34,5 @@ export interface UpdateUserDto {
   preferred_currency?: string;
   local_currency?: string;
   face_id_enabled?: boolean;
+  expo_push_token?: string; // TEXT
 }

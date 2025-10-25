@@ -27,6 +27,7 @@
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.75.0",
     "bs58": "^6.0.0",
+    "expo-server-sdk": "^4.0.0",
     "multer": "^2.0.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
