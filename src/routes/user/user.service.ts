@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { User } from '../../entities/user.entity';
 import { Encoding, SolanaService } from 'src/solana/solana.service';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, TransactionConfirmationStatus } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { TransactionService } from '../transaction/transaction.service';
 
 @Injectable()
 export class UsersService {
@@ -12,6 +13,7 @@ export class UsersService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly solanaService: SolanaService,
+    private readonly transactionService: TransactionService,
   ) {
     this.feePayer = Keypair.fromSecretKey(
       bs58.decode(process.env.SOLANA_SERVER_WALLET_PRIVATE_KEY!),
@@ -392,6 +394,10 @@ export class UsersService {
 
   async transferSpl(
     encodedTransaction: string,
+    senderUid: string,
+    receiverUid: string,
+    amount: number,
+    token: Array<{ amount: string; token_address: string }>,
   ): Promise<{ success: boolean; message: string; signature?: string }> {
     console.log('encodedTransaction: ', encodedTransaction);
     const signature = await this.solanaService.signAndSendTransaction(
@@ -400,10 +406,36 @@ export class UsersService {
       this.feePayer
     );
 
-    return {
-      success: true,
-      message: 'SPL token transfer completed successfully',
-      signature,
-    };
+    let txnStatus = await this.solanaService.getTxnStatus(signature);
+
+    while (txnStatus.value && txnStatus.value.confirmationStatus !== "finalized") {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      txnStatus = await this.solanaService.getTxnStatus(signature);
+    }
+
+    if (txnStatus.value && txnStatus.value?.err != null) {
+      return {
+        success: false,
+        message: 'SPL token transfer failed',
+        signature,
+      };
+    } else {
+
+
+      const txn = await this.transactionService.createTransaction({
+        transaction_hash: signature,
+        sender_uid: senderUid,
+        receiver_uid: receiverUid,
+        amount: amount,
+        token: token,
+        chain_id: 101, // Solana
+        status: 'completed',
+      });
+      return {
+        success: true,
+        message: 'SPL token transfer completed successfully',
+        signature,
+      };
+    }
   }
 }

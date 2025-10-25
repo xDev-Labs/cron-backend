@@ -15,7 +15,7 @@ import { UsersService } from './user.service';
 
 @Controller('user')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -419,21 +419,21 @@ export class UsersController {
 
   // Route 7: Transfer SPL token
   @Post('transfer-spl')
-  async transferSpl(@Body() body: { encodedTransaction: string }) {
+  async transferSpl(@Body() body: { encodedTransaction: string, senderUid: string, receiverUid: string, amount: number, token: Array<{ amount: string; token_address: string }> }) {
     try {
-      const { encodedTransaction } = body;
+      const { encodedTransaction, senderUid, receiverUid, amount, token } = body;
 
-      if (!encodedTransaction) {
+      if (!encodedTransaction || !senderUid || !receiverUid || !amount || !token) {
         throw new HttpException(
           {
             success: false,
-            message: 'encodedTransaction is required',
+            message: 'encodedTransaction, senderUid, receiverUid, amount, and token are required',
           },
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      const result = await this.usersService.transferSpl(encodedTransaction);
+      const result = await this.usersService.transferSpl(encodedTransaction, senderUid, receiverUid, amount, token);
 
       if (!result.success) {
         throw new HttpException(

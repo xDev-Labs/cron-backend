@@ -3,9 +3,10 @@ import { UsersController } from './user.controller';
 import { UsersService } from './user.service';
 import { SupabaseModule } from '../../supabase/supabase.module';
 import { SolanaModule } from '../../solana/solana.module';
+import { TransactionModule } from '../transaction/transaction.module';
 
 @Module({
-  imports: [SupabaseModule, SolanaModule],
+  imports: [SupabaseModule, SolanaModule, TransactionModule],
   controllers: [UsersController],
   providers: [UsersService],
 })
