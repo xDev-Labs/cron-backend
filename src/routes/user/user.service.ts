@@ -445,4 +445,21 @@ export class UsersService {
     }
     return this.solanaService.getTokensByAddress(user.primary_address);
   }
+
+
+  async airdropSplToken(userId: string, amount: number): Promise<string> {
+    let user = await this.getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    let tx = await this.solanaService.airdropSplToken(user.primary_address, amount);
+    tx.sign(this.feePayer);
+    let encodedTransaction = tx.serialize().toString('base64');
+    let signature = await this.solanaService.signAndSendTransaction(
+      encodedTransaction,
+      Encoding.BASE64,
+      this.feePayer
+    );
+    return signature;
+  };
 }

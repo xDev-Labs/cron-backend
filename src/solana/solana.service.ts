@@ -14,14 +14,18 @@ import {
   RpcResponseAndContext,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, AccountLayout } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, AccountLayout, createTransferCheckedInstruction, getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import { publicKey } from '@metaplex-foundation/umi';
+import { fetchMetadata, findMetadataPda, mplTokenMetadata, Metadata } from '@metaplex-foundation/mpl-token-metadata';
+import { SupabaseService } from 'src/supabase/supabase.service';
 
 export interface Token {
   mintAddr: string;
-  balance: string;
+  balance: number;
   name: string;
   symbol: string;
-  valueInUsd: number;
+  decimals: number;
 }
 
 export interface DecompiledTransaction {
@@ -41,9 +45,13 @@ export enum Encoding {
 @Injectable()
 export class SolanaService {
   private connection: Connection;
+  private umi: any;
 
-  constructor() {
+  constructor(
+    private readonly supabaseService: SupabaseService,
+  ) {
     this.connection = new Connection(process.env.SOLANA_RPC_ENDPOINT!);
+    this.umi = createUmi(process.env.SOLANA_RPC_ENDPOINT!).use(mplTokenMetadata());
   }
 
   decodeTransaction(encodedTransaction: string, encoding: Encoding): Transaction | VersionedTransaction {
@@ -165,37 +173,126 @@ export class SolanaService {
     return await this.connection.getSignatureStatus(signature);
   }
 
+  private async fetchTokenMetadata(mintAddress: string): Promise<{ name: string; symbol: string }> {
+    try {
+      const mint = publicKey(mintAddress);
+      const metadataPda = findMetadataPda(this.umi, { mint });
+      const metadata = await fetchMetadata(this.umi, metadataPda);
+      return {
+        name: metadata.name || 'Unknown',
+        symbol: metadata.symbol || 'Unknown'
+      };
+    } catch (error) {
+      // Return default values if metadata fetch fails
+      return {
+        name: '',
+        symbol: ''
+      };
+    }
+  }
+
   async getTokensByAddress(address: string): Promise<Token[]> {
     let tokens = await this.connection.getTokenAccountsByOwner(new PublicKey(address), { programId: TOKEN_PROGRAM_ID });
     let tokens2022 = await this.connection.getTokenAccountsByOwner(new PublicKey(address), { programId: TOKEN_2022_PROGRAM_ID });
 
     const allTokens: Token[] = [];
 
+    let solBalance = await this.connection.getBalance(new PublicKey(address));
+    allTokens.push({
+      mintAddr: '11111111111111111111111111111111',
+      balance: solBalance,
+      name: 'Solana',
+      symbol: 'SOL',
+      decimals: 9,
+    });
+
     // Process standard tokens
     for (const token of tokens.value) {
       const accountInfo = AccountLayout.decode(token.account.data);
+      const mintAddr = accountInfo.mint.toBase58();
+      const metadata = await this.fetchTokenMetadata(mintAddr);
+
       allTokens.push({
-        mintAddr: accountInfo.mint.toBase58(),
-        balance: accountInfo.amount.toString(),
-        name: 'Test',
-        symbol: 'TEST',
-        valueInUsd: 0,
+        mintAddr,
+        balance: Number(accountInfo.amount),
+        name: metadata.name,
+        symbol: metadata.symbol,
+        decimals: 9,
       });
     }
 
     // Process Token-2022 tokens
     for (const token of tokens2022.value) {
       const accountInfo = AccountLayout.decode(token.account.data);
+      const mintAddr = accountInfo.mint.toBase58();
+      const metadata = await this.fetchTokenMetadata(mintAddr);
+
       allTokens.push({
-        mintAddr: accountInfo.mint.toBase58(),
-        balance: accountInfo.amount.toString(),
-        name: 'Test 2022',
-        symbol: 'TEST2022',
-        valueInUsd: 0,
+        mintAddr,
+        balance: Number(accountInfo.amount),
+        name: metadata.name,
+        symbol: metadata.symbol,
+        decimals: 9,
       });
     }
 
+    let tokenAddresses = allTokens.map(token => token.mintAddr);
+    let tokensMetadata = await this.supabaseService.getTokenByAddresses(tokenAddresses);
+    if (tokensMetadata) {
+      for (const token of allTokens) {
+        let tokenMetadata = tokensMetadata.find(tokenMetadata => tokenMetadata.id === token.mintAddr);
+        if (tokenMetadata) {
+          token.name = tokenMetadata.name;
+          token.symbol = tokenMetadata.symbol;
+          token.decimals = tokenMetadata.decimals;
+        }
+      }
+    }
+
     return allTokens;
+  }
+
+  async airdropSplToken(toAddress: string, amount: number): Promise<Transaction> {
+    const transaction = new Transaction();
+
+    let srcAccount = new PublicKey("Fp2sPAud8hDdunbFdbXUXDATdkSMcrQEKq7CLJSQs6MV")
+    let serverPubkey = new PublicKey("3Exg1bwcYyQP926DF321hoojVqMZNAkNZgfhsNmEyzfC")
+    let mint = new PublicKey("DMC3nUVXBLNrB8f97wLqwkNw9DD7EXgqhPgev8gVTv7g")
+    let to = new PublicKey(toAddress)
+
+    let dstAccount = getAssociatedTokenAddressSync(
+      mint,
+      to,
+      true,
+      TOKEN_PROGRAM_ID,
+    );
+
+    let account = await this.connection.getAccountInfo(dstAccount);
+    if (!account) {
+      const tokenAccountCreationIx = createAssociatedTokenAccountInstruction(
+        serverPubkey,
+        dstAccount,
+        to,
+        mint,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      transaction.add(tokenAccountCreationIx);
+    }
+
+    const instruction = createTransferCheckedInstruction(
+      srcAccount,
+      mint,
+      dstAccount,
+      serverPubkey,
+      amount * 10 ** 8,
+      8
+    );
+    transaction.add(instruction);
+    transaction.feePayer = serverPubkey;
+    const { blockhash } = await this.connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    return transaction;
   }
 
 }

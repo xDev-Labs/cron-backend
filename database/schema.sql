@@ -82,3 +82,12 @@ CREATE INDEX IF NOT EXISTS idx_transactions_chain_id ON transactions(chain_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_completed_at ON transactions(completed_at);
 
+-- =====================================================
+-- 8. CREATE TOKENS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS tokens (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  symbol TEXT NOT NULL,
+  decimals INTEGER NOT NULL,
+);
