@@ -490,4 +490,55 @@ export class UsersController {
       );
     }
   }
+
+  // Route 9: Airdrop SPL token
+  @Post('airdrop')
+  async airdropSplToken(@Body() body: { userId: string; amount: number }) {
+    try {
+      const { userId, amount } = body;
+
+      if (!userId || !amount) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'userId and amount are required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (amount <= 0) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Amount must be greater than 0',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const signature = await this.usersService.airdropSplToken(userId, amount);
+
+      return {
+        success: true,
+        message: 'SPL token airdrop completed successfully',
+        data: {
+          signature,
+          userId,
+          amount,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

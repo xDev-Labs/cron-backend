@@ -2,6 +2,13 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+export interface Token {
+  id: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   private supabase: SupabaseClient;
@@ -83,4 +90,19 @@ export class SupabaseService implements OnModuleInit {
     };
     return contentTypes[extension] || 'image/jpeg';
   }
+
+  async getTokenByAddresses(addresses: string[]): Promise<Token[] | null> {
+    const { data, error } = await this.supabase
+      .from('tokens')
+      .select('*')
+      .in('id', addresses)
+      .single();
+
+    if (error) {
+      return null;
+    }
+
+    return data;
+  }
+
 }
