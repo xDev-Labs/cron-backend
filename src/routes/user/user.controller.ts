@@ -15,7 +15,7 @@ import { UsersService } from './user.service';
 
 @Controller('user')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -53,6 +53,39 @@ export class UsersController {
   async getUserByPhoneNumber(@Param('phoneNumber') phoneNumber: string) {
     try {
       const user = await this.usersService.getUserByPhoneNumber(phoneNumber);
+
+      if (!user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User not found',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      return {
+        success: true,
+        message: 'User retrieved successfully',
+        data: user,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+  @Get('cron-id/:cronId')
+  async getUserByCronId(@Param('cronId') cronId: string) {
+    try {
+      const user = await this.usersService.getUserByCronID(cronId);
 
       if (!user) {
         throw new HttpException(
@@ -419,21 +452,44 @@ export class UsersController {
 
   // Route 7: Transfer SPL token
   @Post('transfer-spl')
-  async transferSpl(@Body() body: { encodedTransaction: string, senderUid: string, receiverUid: string, amount: number, token: Array<{ amount: string; token_address: string }> }) {
+  async transferSpl(
+    @Body()
+    body: {
+      encodedTransaction: string;
+      senderUid: string;
+      receiverUid: string;
+      amount: number;
+      token: Array<{ amount: string; token_address: string }>;
+    },
+  ) {
     try {
-      const { encodedTransaction, senderUid, receiverUid, amount, token } = body;
+      const { encodedTransaction, senderUid, receiverUid, amount, token } =
+        body;
 
-      if (!encodedTransaction || !senderUid || !receiverUid || !amount || !token) {
+      if (
+        !encodedTransaction ||
+        !senderUid ||
+        !receiverUid ||
+        !amount ||
+        !token
+      ) {
         throw new HttpException(
           {
             success: false,
-            message: 'encodedTransaction, senderUid, receiverUid, amount, and token are required',
+            message:
+              'encodedTransaction, senderUid, receiverUid, amount, and token are required',
           },
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      const result = await this.usersService.transferSpl(encodedTransaction, senderUid, receiverUid, amount, token);
+      const result = await this.usersService.transferSpl(
+        encodedTransaction,
+        senderUid,
+        receiverUid,
+        amount,
+        token,
+      );
 
       if (!result.success) {
         throw new HttpException(
@@ -465,7 +521,6 @@ export class UsersController {
       );
     }
   }
-
 
   // Route 8: Get tokens by user ID
   @Get(':id/tokens')

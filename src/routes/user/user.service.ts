@@ -63,7 +63,30 @@ export class UsersService {
 
     return data;
   }
+  async getUserByCronID(cronId: string): Promise<{
+    user_id: string;
+    phone_number: string;
+    cron_id: string;
+    primary_address: string;
+    avatar_url?: string;
+  } | null> {
+    const supabase = this.supabaseService.getClient();
 
+    const { data, error } = await supabase
+      .from('users')
+      .select('user_id, phone_number, cron_id, primary_address, avatar_url')
+      .eq('cron_id', cronId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // User not found
+      }
+      throw new Error(`Failed to get user by cron ID: ${error.message}`);
+    }
+
+    return data;
+  }
   async getUserByAddress(address: string): Promise<User | null> {
     const supabase = this.supabaseService.getClient();
 
@@ -403,13 +426,16 @@ export class UsersService {
     const signature = await this.solanaService.signAndSendTransaction(
       encodedTransaction,
       Encoding.BASE64,
-      this.feePayer
+      this.feePayer,
     );
 
     let txnStatus = await this.solanaService.getTxnStatus(signature);
 
-    while (txnStatus.value && txnStatus.value.confirmationStatus !== "finalized") {
-      await new Promise(resolve => setTimeout(resolve, 500));
+    while (
+      txnStatus.value &&
+      txnStatus.value.confirmationStatus !== 'finalized'
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
       txnStatus = await this.solanaService.getTxnStatus(signature);
     }
 
@@ -437,7 +463,6 @@ export class UsersService {
     }
   }
 
-
   async getTokensByUserId(userId: string): Promise<Token[]> {
     const user = await this.getUserById(userId);
     if (!user) {
@@ -446,20 +471,22 @@ export class UsersService {
     return this.solanaService.getTokensByAddress(user.primary_address);
   }
 
-
   async airdropSplToken(userId: string, amount: number): Promise<string> {
     let user = await this.getUserById(userId);
     if (!user) {
       throw new Error('User not found');
     }
-    let tx = await this.solanaService.airdropSplToken(user.primary_address, amount);
+    let tx = await this.solanaService.airdropSplToken(
+      user.primary_address,
+      amount,
+    );
     tx.sign(this.feePayer);
     let encodedTransaction = tx.serialize().toString('base64');
     let signature = await this.solanaService.signAndSendTransaction(
       encodedTransaction,
       Encoding.BASE64,
-      this.feePayer
+      this.feePayer,
     );
     return signature;
-  };
+  }
 }
