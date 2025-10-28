@@ -92,16 +92,17 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async getTokenByAddresses(addresses: string[]): Promise<Token[] | null> {
+    console.log({ addresses })
     const { data, error } = await this.supabase
       .from('tokens')
       .select('*')
-      .in('id', addresses)
-      .single();
+      .in('id', addresses);
 
+    console.log({ error })
     if (error) {
       return null;
     }
-
+    console.log({ data })
     return data;
   }
 
