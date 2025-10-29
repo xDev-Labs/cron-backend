@@ -82,6 +82,7 @@ export class UsersController {
       );
     }
   }
+  
   @Get('cron-id/:cronId')
   async getUserByCronId(@Param('cronId') cronId: string) {
     try {

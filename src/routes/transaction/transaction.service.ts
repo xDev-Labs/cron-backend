@@ -75,7 +75,8 @@ export class TransactionService {
           },
         };
       }
-      userFilter = `sender_uid.eq.${userId},receiver_uid.eq.${userId},receiver_uid.eq.${receiverUserId}`;
+      // Filter for transactions between the two users (both directions)
+      userFilter = `and(sender_uid.eq.${userId},receiver_uid.eq.${receiverUserId}),and(sender_uid.eq.${receiverUserId},receiver_uid.eq.${userId})`;
     }
 
     // Get total count
