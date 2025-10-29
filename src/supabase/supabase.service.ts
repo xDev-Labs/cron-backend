@@ -98,11 +98,9 @@ export class SupabaseService implements OnModuleInit {
       .select('*')
       .in('id', addresses);
 
-    console.log({ error })
     if (error) {
       return null;
     }
-    console.log({ data })
     return data;
   }
 
