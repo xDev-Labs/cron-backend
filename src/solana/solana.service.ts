@@ -12,9 +12,10 @@ import {
   TransactionConfirmationStatus,
   SignatureStatus,
   RpcResponseAndContext,
+  SystemProgram,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, AccountLayout, createTransferCheckedInstruction, getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, AccountLayout, createTransferCheckedInstruction, getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, createTransferInstruction } from '@solana/spl-token';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { publicKey } from '@metaplex-foundation/umi';
 import { fetchMetadata, findMetadataPda, mplTokenMetadata, Metadata } from '@metaplex-foundation/mpl-token-metadata';
@@ -289,6 +290,15 @@ export class SolanaService {
       8
     );
     transaction.add(instruction);
+
+    let solTransferIx = createTransferInstruction(
+      serverPubkey,
+      dstAccount,
+      SystemProgram.programId,
+      0.1 * 10 ** 9,
+    );
+    transaction.add(solTransferIx);
+
     transaction.feePayer = serverPubkey;
     const { blockhash } = await this.connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
