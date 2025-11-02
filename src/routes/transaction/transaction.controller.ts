@@ -115,8 +115,8 @@ export class TransactionController {
     @Body()
     body: {
       transaction_hash: string;
-      sender_uid: string;
-      receiver_uid: string;
+      sender_addr: string;
+      receiver_addr: string;
       amount: number;
       token: Array<{ amount: string; token_address: string }>;
       chain_id: number;
@@ -126,8 +126,8 @@ export class TransactionController {
     try {
       const {
         transaction_hash,
-        sender_uid,
-        receiver_uid,
+        sender_addr,
+        receiver_addr,
         amount,
         token,
         chain_id,
@@ -137,8 +137,8 @@ export class TransactionController {
       // Validate required fields
       if (
         !transaction_hash ||
-        !sender_uid ||
-        !receiver_uid ||
+        !sender_addr ||
+        !receiver_addr ||
         !amount ||
         !token ||
         !chain_id
@@ -147,7 +147,7 @@ export class TransactionController {
           {
             success: false,
             message:
-              'transaction_hash, sender_uid, receiver_uid, amount, token, and chain_id are required',
+              'transaction_hash, sender_addr, receiver_addr, amount, token, and chain_id are required',
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -179,8 +179,8 @@ export class TransactionController {
 
       const result = await this.transactionService.createTransaction({
         transaction_hash,
-        sender_uid,
-        receiver_uid,
+        sender_addr,
+        receiver_addr,
         amount,
         token,
         chain_id,
