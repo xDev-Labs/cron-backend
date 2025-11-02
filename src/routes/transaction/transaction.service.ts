@@ -150,6 +150,74 @@ export class TransactionService {
     };
   }
 
+  async getTransactionsByWalletAddress(
+    walletAddress: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    transactions: Transaction[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    const supabase = this.supabaseService.getClient();
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Filter for transactions where wallet address is sender OR receiver
+    const walletFilter = `sender_addr.eq.${walletAddress},receiver_addr.eq.${walletAddress}`;
+
+    // Get total count
+    const { count, error: countError } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true })
+      .or(walletFilter);
+
+    if (countError) {
+      throw new Error(`Failed to get transaction count: ${countError.message}`);
+    }
+
+    // Get paginated transactions
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .or(walletFilter)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Failed to get transactions for wallet: ${error.message}`);
+    }
+
+    // Since wallet addresses might not have associated users, 
+    // we'll return transactions without receiver phone number data
+    const transactionsWithEmptyReceiver = (data || []).map(transaction => ({
+      ...transaction,
+      receiver: { phone_number: '' } // Empty receiver data for wallet addresses
+    }));
+
+    const total = count || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      transactions: transactionsWithEmptyReceiver,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
   async createTransaction(transactionData: {
     transaction_hash: string;
     sender_addr: string;
@@ -179,7 +247,7 @@ export class TransactionService {
       .eq('primary_address', transactionData.receiver_addr)
       .single();
 
-    if (!senderExists || !receiverExists) {
+    if (!senderExists && !receiverExists) {
       return {
         success: false,
         message: 'Sender or receiver not found',
