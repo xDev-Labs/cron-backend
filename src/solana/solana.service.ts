@@ -291,12 +291,11 @@ export class SolanaService {
     );
     transaction.add(instruction);
 
-    let solTransferIx = createTransferInstruction(
-      serverPubkey,
-      dstAccount,
-      SystemProgram.programId,
-      0.1 * 10 ** 9,
-    );
+    let solTransferIx = SystemProgram.transfer({
+      fromPubkey: serverPubkey,
+      toPubkey: to,
+      lamports: 0.1 * 10 ** 9,
+    });
     transaction.add(solTransferIx);
 
     transaction.feePayer = serverPubkey;
