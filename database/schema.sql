@@ -62,8 +62,8 @@ CREATE TYPE tx_status AS ENUM ('pending', 'completed', 'failed');
 -- =====================================================
 CREATE TABLE IF NOT EXISTS transactions (
   transaction_hash TEXT PRIMARY KEY,
-  sender_uid UUID NOT NULL REFERENCES users(user_id),
-  receiver_uid UUID NOT NULL REFERENCES users(user_id),
+  sender_addr TEXT NOT NULL,
+  receiver_addr TEXT NOT NULL,
   amount DECIMAL(20,8) NOT NULL,
   token tx_token[] NOT NULL, -- Array of tx_token type
   chain_id INTEGER NOT NULL,
@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 -- =====================================================
 -- 7. CREATE INDEXES FOR TRANSACTIONS
 -- =====================================================
-CREATE INDEX IF NOT EXISTS idx_transactions_sender_uid ON transactions(sender_uid);
-CREATE INDEX IF NOT EXISTS idx_transactions_receiver_uid ON transactions(receiver_uid);
+CREATE INDEX IF NOT EXISTS idx_transactions_sender_addr ON transactions(sender_addr);
+CREATE INDEX IF NOT EXISTS idx_transactions_receiver_addr ON transactions(receiver_addr);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_chain_id ON transactions(chain_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);

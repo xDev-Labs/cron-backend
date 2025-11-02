@@ -110,13 +110,74 @@ export class TransactionController {
     }
   }
 
+  @Get('wallet/:walletAddress')
+  async getTransactionsByWalletAddress(
+    @Param('walletAddress') walletAddress: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    try {
+      // Parse and validate pagination parameters
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+
+      // Validate pagination parameters
+      if (pageNum < 1) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Page number must be greater than 0',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (limitNum < 1 || limitNum > 100) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Limit must be between 1 and 100',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.transactionService.getTransactionsByWalletAddress(
+        walletAddress,
+        pageNum,
+        limitNum,
+      );
+      return {
+        success: true,
+        message: 'Wallet transactions retrieved successfully',
+        data: {
+          walletAddress,
+          transactions: result.transactions,
+          pagination: result.pagination,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Post()
   async createTransaction(
     @Body()
     body: {
       transaction_hash: string;
-      sender_uid: string;
-      receiver_uid: string;
+      sender_addr: string;
+      receiver_addr: string;
       amount: number;
       token: Array<{ amount: string; token_address: string }>;
       chain_id: number;
@@ -126,8 +187,8 @@ export class TransactionController {
     try {
       const {
         transaction_hash,
-        sender_uid,
-        receiver_uid,
+        sender_addr,
+        receiver_addr,
         amount,
         token,
         chain_id,
@@ -137,8 +198,8 @@ export class TransactionController {
       // Validate required fields
       if (
         !transaction_hash ||
-        !sender_uid ||
-        !receiver_uid ||
+        !sender_addr ||
+        !receiver_addr ||
         !amount ||
         !token ||
         !chain_id
@@ -147,7 +208,7 @@ export class TransactionController {
           {
             success: false,
             message:
-              'transaction_hash, sender_uid, receiver_uid, amount, token, and chain_id are required',
+              'transaction_hash, sender_addr, receiver_addr, amount, token, and chain_id are required',
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -179,8 +240,8 @@ export class TransactionController {
 
       const result = await this.transactionService.createTransaction({
         transaction_hash,
-        sender_uid,
-        receiver_uid,
+        sender_addr,
+        receiver_addr,
         amount,
         token,
         chain_id,

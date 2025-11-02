@@ -15,7 +15,7 @@ import { UsersService } from './user.service';
 
 @Controller('user')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -82,7 +82,7 @@ export class UsersController {
       );
     }
   }
-  
+
   @Get('cron-id/:cronId')
   async getUserByCronId(@Param('cronId') cronId: string) {
     try {
@@ -457,20 +457,20 @@ export class UsersController {
     @Body()
     body: {
       encodedTransaction: string;
-      senderUid: string;
-      receiverUid: string;
+      senderAddr: string;
+      receiverAddr: string;
       amount: number;
       token: Array<{ amount: string; token_address: string }>;
     },
   ) {
     try {
-      const { encodedTransaction, senderUid, receiverUid, amount, token } =
+      const { encodedTransaction, senderAddr, receiverAddr, amount, token } =
         body;
 
       if (
         !encodedTransaction ||
-        !senderUid ||
-        !receiverUid ||
+        !senderAddr ||
+        !receiverAddr ||
         !amount ||
         !token
       ) {
@@ -478,7 +478,7 @@ export class UsersController {
           {
             success: false,
             message:
-              'encodedTransaction, senderUid, receiverUid, amount, and token are required',
+              'encodedTransaction, senderAddr, receiverAddr, amount, and token are required',
           },
           HttpStatus.BAD_REQUEST,
         );
@@ -486,8 +486,8 @@ export class UsersController {
 
       const result = await this.usersService.transferSpl(
         encodedTransaction,
-        senderUid,
-        receiverUid,
+        senderAddr,
+        receiverAddr,
         amount,
         token,
       );

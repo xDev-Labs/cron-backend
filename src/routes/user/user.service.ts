@@ -417,8 +417,8 @@ export class UsersService {
 
   async transferSpl(
     encodedTransaction: string,
-    senderUid: string,
-    receiverUid: string,
+    senderAddr: string,
+    receiverAddr: string,
     amount: number,
     token: Array<{ amount: string; token_address: string }>,
   ): Promise<{ success: boolean; message: string; signature?: string }> {
@@ -448,8 +448,8 @@ export class UsersService {
     } else {
       await this.transactionService.createTransaction({
         transaction_hash: signature,
-        sender_uid: senderUid,
-        receiver_uid: receiverUid,
+        sender_addr: senderAddr,
+        receiver_addr: receiverAddr,
         amount: amount,
         token: token,
         chain_id: 101, // Solana

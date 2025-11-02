@@ -4,7 +4,7 @@ import type { Transaction } from '../../entities/transaction.entity';
 
 @Injectable()
 export class TransactionService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   async getTransactionByHash(
     transactionHash: string,
@@ -13,12 +13,7 @@ export class TransactionService {
 
     const { data, error } = await supabase
       .from('transactions')
-      .select(
-        `
-        *,
-        receiver:receiver_uid(phone_number)
-      `,
-      )
+      .select('*')
       .eq('transaction_hash', transactionHash)
       .single();
 
@@ -27,6 +22,19 @@ export class TransactionService {
         return null;
       }
       throw new Error(`Failed to get transaction: ${error.message}`);
+    }
+
+    // Fetch receiver's phone number separately
+    if (data && data.receiver_addr) {
+      const { data: receiverData, error: receiverError } = await supabase
+        .from('users')
+        .select('phone_number')
+        .eq('user_id', data.receiver_addr)
+        .single();
+
+      if (!receiverError && receiverData) {
+        data.receiver = receiverData;
+      }
     }
 
     return data;
@@ -54,7 +62,7 @@ export class TransactionService {
     const offset = (page - 1) * limit;
 
     // Build base query with user filter
-    let userFilter = `sender_uid.eq.${userId},receiver_uid.eq.${userId}`;
+    let userFilter = `sender_addr.eq.${userId},receiver_addr.eq.${userId}`;
     let ascending = false;
     // Resolve receiver identifier to user ID if provided
     let receiverUserId: string | null = null;
@@ -76,7 +84,7 @@ export class TransactionService {
         };
       }
       // Filter for transactions between the two users (both directions)
-      userFilter = `and(sender_uid.eq.${userId},receiver_uid.eq.${receiverUserId}),and(sender_uid.eq.${receiverUserId},receiver_uid.eq.${userId})`;
+      userFilter = `and(sender_addr.eq.${userId},receiver_addr.eq.${receiverUserId}),and(sender_addr.eq.${receiverUserId},receiver_addr.eq.${userId})`;
     }
 
     // Get total count
@@ -89,21 +97,41 @@ export class TransactionService {
       throw new Error(`Failed to get transaction count: ${countError.message}`);
     }
 
-    // Get paginated transactions with receiver phone number
+    // Get paginated transactions without join
     const { data, error } = await supabase
       .from('transactions')
-      .select(
-        `
-        *,
-        receiver:receiver_uid(phone_number)
-      `,
-      )
+      .select('*')
       .or(userFilter)
       .order('created_at', { ascending: ascending })
       .range(offset, offset + limit - 1);
 
     if (error) {
       throw new Error(`Failed to get transactions for user: ${error.message}`);
+    }
+
+    // Fetch phone numbers for all unique receiver addresses
+    if (data && data.length > 0) {
+      const uniqueReceiverAddrs = [...new Set(data.map(tx => tx.receiver_addr))];
+
+      const { data: receiversData, error: receiversError } = await supabase
+        .from('users')
+        .select('user_id, phone_number')
+        .in('user_id', uniqueReceiverAddrs);
+
+      if (!receiversError && receiversData) {
+        // Create a map for quick lookup
+        const receiverMap = new Map(
+          receiversData.map(user => [user.user_id, { phone_number: user.phone_number }])
+        );
+
+        // Add receiver data to each transaction
+        data.forEach(transaction => {
+          const receiverInfo = receiverMap.get(transaction.receiver_addr);
+          if (receiverInfo) {
+            transaction.receiver = receiverInfo;
+          }
+        });
+      }
     }
 
     const total = count || 0;
@@ -122,10 +150,78 @@ export class TransactionService {
     };
   }
 
+  async getTransactionsByWalletAddress(
+    walletAddress: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    transactions: Transaction[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    const supabase = this.supabaseService.getClient();
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Filter for transactions where wallet address is sender OR receiver
+    const walletFilter = `sender_addr.eq.${walletAddress},receiver_addr.eq.${walletAddress}`;
+
+    // Get total count
+    const { count, error: countError } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true })
+      .or(walletFilter);
+
+    if (countError) {
+      throw new Error(`Failed to get transaction count: ${countError.message}`);
+    }
+
+    // Get paginated transactions
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .or(walletFilter)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Failed to get transactions for wallet: ${error.message}`);
+    }
+
+    // Since wallet addresses might not have associated users, 
+    // we'll return transactions without receiver phone number data
+    const transactionsWithEmptyReceiver = (data || []).map(transaction => ({
+      ...transaction,
+      receiver: { phone_number: '' } // Empty receiver data for wallet addresses
+    }));
+
+    const total = count || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      transactions: transactionsWithEmptyReceiver,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
   async createTransaction(transactionData: {
     transaction_hash: string;
-    sender_uid: string;
-    receiver_uid: string;
+    sender_addr: string;
+    receiver_addr: string;
     amount: number;
     token: Array<{ amount: string; token_address: string }>;
     chain_id: number;
@@ -141,26 +237,20 @@ export class TransactionService {
     const { data: senderExists, error: senderError } = await supabase
       .from('users')
       .select('user_id')
-      .eq('user_id', transactionData.sender_uid)
+      .eq('primary_address', transactionData.sender_addr)
       .single();
 
-    if (senderError || !senderExists) {
-      return {
-        success: false,
-        message: 'Sender user not found',
-      };
-    }
 
     const { data: receiverExists, error: receiverError } = await supabase
       .from('users')
       .select('user_id')
-      .eq('user_id', transactionData.receiver_uid)
+      .eq('primary_address', transactionData.receiver_addr)
       .single();
 
-    if (receiverError || !receiverExists) {
+    if (!senderExists && !receiverExists) {
       return {
         success: false,
-        message: 'Receiver user not found',
+        message: 'Sender or receiver not found',
       };
     }
 
@@ -189,8 +279,8 @@ export class TransactionService {
       .from('transactions')
       .insert({
         transaction_hash: transactionData.transaction_hash,
-        sender_uid: transactionData.sender_uid,
-        receiver_uid: transactionData.receiver_uid,
+        sender_addr: transactionData.sender_addr,
+        receiver_addr: transactionData.receiver_addr,
         amount: transactionData.amount,
         token: transactionData.token,
         chain_id: transactionData.chain_id,

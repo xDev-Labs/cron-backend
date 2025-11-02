@@ -7,8 +7,8 @@ export type TxStatus = 'pending' | 'completed' | 'failed';
 
 export interface Transaction {
   transaction_hash: string; // TEXT, Primary Key
-  sender_uid: string; // UUID, Foreign Key (Users.user_id), Not Null
-  receiver_uid: string; // UUID, Foreign Key (Users.user_id), Not Null
+  sender_addr: string; // UUID, Foreign Key (Users.user_id), Not Null
+  receiver_addr: string; // UUID, Foreign Key (Users.user_id), Not Null
   amount: number; // Not Null
   token: TxToken[]; // Not Null
   chain_id: number; // Not Null
@@ -22,8 +22,8 @@ export interface Transaction {
 
 export interface CreateTransactionDto {
   transaction_hash: string;
-  sender_uid: string;
-  receiver_uid: string;
+  sender_addr: string;
+  receiver_addr: string;
   amount: number;
   token: TxToken[];
   chain_id: number;
@@ -31,8 +31,8 @@ export interface CreateTransactionDto {
 }
 
 export interface UpdateTransactionDto {
-  sender_uid?: string;
-  receiver_uid?: string;
+  sender_addr?: string;
+  receiver_addr?: string;
   amount?: number;
   token?: TxToken[];
   chain_id?: number;
