@@ -115,13 +115,16 @@ export class TransactionService {
 
       const { data: receiversData, error: receiversError } = await supabase
         .from('users')
-        .select('user_id, phone_number')
-        .in('user_id', uniqueReceiverAddrs);
+        .select('primary_address, phone_number')
+        .in('primary_address', uniqueReceiverAddrs);
+
+      console.log(uniqueReceiverAddrs);
+      console.log(receiversData);
 
       if (!receiversError && receiversData) {
         // Create a map for quick lookup
         const receiverMap = new Map(
-          receiversData.map(user => [user.user_id, { phone_number: user.phone_number }])
+          receiversData.map(user => [user.primary_address, { phone_number: user.phone_number }])
         );
 
         // Add receiver data to each transaction
@@ -133,6 +136,8 @@ export class TransactionService {
         });
       }
     }
+
+
 
     const total = count || 0;
     const totalPages = Math.ceil(total / limit);
