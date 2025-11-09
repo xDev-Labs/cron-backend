@@ -317,40 +317,40 @@ export class TransactionService {
       // It's a UUID, check if user exists
       const { data, error } = await supabase
         .from('users')
-        .select('user_id')
+        .select('primary_address')
         .eq('user_id', identifier)
         .single();
 
       if (error || !data) {
         return null;
       }
-      return data.user_id;
+      return data.primary_address;
     }
 
     // Check if it's a phone number
     if (identifier.startsWith('+') || /^\d+$/.test(identifier)) {
       const { data, error } = await supabase
         .from('users')
-        .select('user_id')
+        .select('primary_address')
         .eq('phone_number', identifier)
         .single();
 
       if (error || !data) {
         return null;
       }
-      return data.user_id;
+      return data.primary_address;
     }
 
     // Check if it's a cron_id
     const { data, error } = await supabase
       .from('users')
-      .select('user_id')
+      .select('primary_address')
       .eq('cron_id', identifier)
       .single();
 
     if (error || !data) {
       return null;
     }
-    return data.user_id;
+    return data.primary_address;
   }
 }

@@ -47,17 +47,17 @@ export class TransactionController {
     }
   }
 
-  @Get('user/:userId')
+  @Post('user/:userId')
   async getTransactionsByUserId(
     @Param('userId') userId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('receiver') receiver?: string,
+    @Body('page') page?: number,
+    @Body('limit') limit?: number,
+    @Body('receiver') receiver?: string,
   ) {
     try {
       // Parse and validate pagination parameters
-      const pageNum = page ? parseInt(page, 10) : 1;
-      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? page : 1;
+      const limitNum = limit ? limit : 10;
 
       // Validate pagination parameters
       if (pageNum < 1) {
