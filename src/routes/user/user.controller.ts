@@ -597,4 +597,16 @@ export class UsersController {
       );
     }
   }
+
+  @Get('debug/:level')
+  async debug(@Param('level') level: string) {
+    console.log("DEBUG LEVEL: ", level);
+    return {
+      success: true,
+      message: 'Debug completed successfully',
+      data: {
+        message: 'Debug completed successfully',
+      },
+    };
+  }
 }
