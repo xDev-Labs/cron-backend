@@ -9,13 +9,17 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './user.service';
+import { NotificationService } from 'src/notification/notification.service';
+import { ExpoPushMessage } from 'expo-server-sdk';
 
 @Controller('user')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  private readonly logger = new Logger(UsersController.name);
+  constructor(private readonly usersService: UsersService) {}
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -499,6 +503,52 @@ export class UsersController {
             message: result.message,
           },
           HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      try {
+        const receiver = await this.usersService.getUserByAddress(receiverAddr);
+
+        if (!receiver) {
+          this.logger.warn(
+            `Skipping push notification: receiver ${receiverAddr} not found`,
+          );
+        } else if (!receiver.expo_push_token) {
+          this.logger.debug(
+            `Skipping push notification: receiver ${receiverAddr} missing expo token`,
+          );
+        } else {
+          const notification: ExpoPushMessage = {
+            to: receiver.expo_push_token,
+            sound: 'default',
+            body: `You received ${amount}`,
+          };
+
+          const tickets = await NotificationService.pushNotify([notification]);
+          const failedTickets = tickets.filter(
+            (ticket) => ticket.status !== 'ok',
+          );
+
+          if (failedTickets.length) {
+            const reasons = failedTickets
+              .map(
+                (ticket) =>
+                  ticket.message ??
+                  (ticket.details && 'error' in ticket.details
+                    ? String(ticket.details.error)
+                    : 'Unknown error'),
+              )
+              .join('; ');
+
+            this.logger.warn(
+              `Expo push notification reported errors for receiver ${receiverAddr}: ${reasons}`,
+            );
+          }
+        }
+      } catch (notificationError) {
+        this.logger.error(
+          `Failed to process push notification for receiver ${receiverAddr}`,
+          notificationError instanceof Error ? notificationError.stack : undefined,
         );
       }
 
