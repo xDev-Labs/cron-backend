@@ -10,16 +10,50 @@ import {
   UseInterceptors,
   UploadedFile,
   Logger,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './user.service';
 import { NotificationService } from 'src/notification/notification.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
+import { FirebaseAdminService } from 'src/auth/firebase-admin.service';
+import { JwtAuthService } from 'src/auth/jwt-auth.service';
+import { JwtAccessGuard } from 'src/auth/guards/jwt-access.guard';
+import type { AuthenticatedRequest } from 'src/auth/guards/jwt-access.guard';
 
 @Controller('user')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly firebaseAdminService: FirebaseAdminService,
+    private readonly jwtAuthService: JwtAuthService,
+  ) {}
+
+  @Get('protected/test')
+  @UseGuards(JwtAccessGuard)
+  async protectedPing(@Req() req: AuthenticatedRequest) {
+    const payload = req.user;
+
+    if (!payload) {
+      throw new HttpException(
+        { success: false, message: 'Unauthorized' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const user = await this.usersService.getUserById(payload.sub);
+
+    return {
+      success: true,
+      message: 'Authenticated request successful',
+      data: {
+        tokenPayload: payload,
+        user,
+      },
+    };
+  }
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -228,9 +262,9 @@ export class UsersController {
 
   // Route 3: Create or find user by phone number
   @Post('create')
-  async createUser(@Body() body: { phoneNumber: string }) {
+  async createUser(@Body() body: { phoneNumber: string, idToken: string }) {
     try {
-      const { phoneNumber } = body;
+      const { phoneNumber, idToken } = body;
 
       if (!phoneNumber) {
         throw new HttpException(
@@ -242,7 +276,45 @@ export class UsersController {
         );
       }
 
+      if(!idToken){
+        throw new HttpException(
+          {
+            success: false,
+            message: 'idToken is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      try {
+        await this.firebaseAdminService.verifyIdToken(idToken);
+      } catch (error) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Invalid idToken',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
       const result = await this.usersService.createUser(phoneNumber);
+
+      if (!result.user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Unable to create user record',
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const tokens = await this.jwtAuthService.generateTokenPair({
+        userId: result.user.user_id,
+        phoneNumber: result.user.phone_number,
+        cronId: result.user.cron_id,
+      });
 
       return {
         success: true,
@@ -250,9 +322,66 @@ export class UsersController {
         data: {
           user: result.user,
           isNewUser: result.isNewUser,
+          tokens,
         },
       };
     } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('refresh-token')
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    try {
+      const { refreshToken } = body;
+
+      if (!refreshToken) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'refreshToken is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const payload = await this.jwtAuthService.verifyRefreshToken(refreshToken);
+      const user = await this.usersService.getUserById(payload.sub);
+
+      if (!user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User associated with token was not found',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const tokens = await this.jwtAuthService.rotateTokens(refreshToken, {
+        userId: user.user_id,
+        phoneNumber: user.phone_number,
+        cronId: user.cron_id,
+      });
+
+      return {
+        success: true,
+        message: 'Tokens refreshed successfully',
+        data: {
+          user,
+          tokens,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         {
           success: false,
