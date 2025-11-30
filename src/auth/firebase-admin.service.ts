@@ -7,7 +7,10 @@ import {
   initializeApp,
 } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
-import serviceAccount from '../../serviceAccountKey.json';
+
+const serviceAccount = JSON.parse(
+  process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string
+);
 
 @Injectable()
 export class FirebaseAdminService {
