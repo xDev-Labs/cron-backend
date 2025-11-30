@@ -296,6 +296,36 @@ export class UsersService {
 
     // 3. Update user with onboarding data
     const supabase = this.supabaseService.getClient();
+
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('wallet_address')
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+      throw new Error(`Failed to onboard user: ${fetchError.message}`);
+    }
+
+    if (
+      Array.isArray(existingUser.wallet_address) &&
+      existingUser.wallet_address.length > 0 &&
+      existingUser.wallet_address.some(
+        (address) => address !== smartWalletAddress,
+      )
+    ) {
+      return {
+        success: false,
+        message: 'Wallet address already exists for this user',
+      };
+    }
+
     const { data, error } = await supabase
       .from('users')
       .update({

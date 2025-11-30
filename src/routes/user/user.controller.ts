@@ -10,16 +10,50 @@ import {
   UseInterceptors,
   UploadedFile,
   Logger,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './user.service';
 import { NotificationService } from 'src/notification/notification.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
+import { FirebaseAdminService } from 'src/auth/firebase-admin.service';
+import { JwtAuthService } from 'src/auth/jwt-auth.service';
+import { JwtAccessGuard } from 'src/auth/guards/jwt-access.guard';
+import type { AuthenticatedRequest } from 'src/auth/guards/jwt-access.guard';
 
 @Controller('user')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly firebaseAdminService: FirebaseAdminService,
+    private readonly jwtAuthService: JwtAuthService,
+  ) {}
+
+  @Get('protected/test')
+  @UseGuards(JwtAccessGuard)
+  async protectedPing(@Req() req: AuthenticatedRequest) {
+    const user = req.user;
+
+    if (!user) {
+      throw new HttpException(
+        { success: false, message: 'Unauthorized' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const user_data = await this.usersService.getUserById(user.id);
+
+    return {
+      success: true,
+      message: 'Authenticated request successful',
+      data: {
+        tokenPayload: user,
+        user,
+      },
+    };
+  }
 
   @Get(':id')
   async getUserById(@Param('id') id: string) {
@@ -180,22 +214,37 @@ export class UsersController {
   }
 
   // Route 2: Register cron ID for a user
-  @Post('cron-id/register')
-  async registerCronId(@Body() body: { userId: string; cronId: string }) {
+  @Post('register-cron-id')
+  @UseGuards(JwtAccessGuard)
+  async registerCronId(
+    @Req() req: AuthenticatedRequest, 
+    @Body() body: {cronId: string }
+  ) {
     try {
-      const { userId, cronId } = body;
+      const user = req.user;
 
-      if (!userId || !cronId) {
+      if (!user) {
         throw new HttpException(
           {
             success: false,
-            message: 'userId and cronId are required',
+            message: 'Unauthorized',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const { cronId } = body;
+      
+      if (!cronId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'cronId is required',
           },
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      const result = await this.usersService.registerCronId(userId, cronId);
+      const result = await this.usersService.registerCronId(user.id, cronId);
 
       if (!result.success) {
         throw new HttpException(
@@ -228,9 +277,9 @@ export class UsersController {
 
   // Route 3: Create or find user by phone number
   @Post('create')
-  async createUser(@Body() body: { phoneNumber: string }) {
+  async createUser(@Body() body: { phoneNumber: string, idToken: string }) {
     try {
-      const { phoneNumber } = body;
+      const { phoneNumber, idToken } = body;
 
       if (!phoneNumber) {
         throw new HttpException(
@@ -242,7 +291,44 @@ export class UsersController {
         );
       }
 
+      if(!idToken){
+        throw new HttpException(
+          {
+            success: false,
+            message: 'idToken is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      try {
+        await this.firebaseAdminService.verifyIdToken(idToken);
+      } catch (error) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Invalid idToken',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
       const result = await this.usersService.createUser(phoneNumber);
+
+      if (!result.user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Unable to create user record',
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const tokens = await this.jwtAuthService.generateTokenPair({
+        userId: result.user.user_id,
+        phoneNumber: result.user.phone_number,
+      });
 
       return {
         success: true,
@@ -250,9 +336,65 @@ export class UsersController {
         data: {
           user: result.user,
           isNewUser: result.isNewUser,
+          tokens,
         },
       };
     } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('refresh-token')
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    try {
+      const { refreshToken } = body;
+
+      if (!refreshToken) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'refreshToken is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const payload = await this.jwtAuthService.verifyRefreshToken(refreshToken);
+      const user = await this.usersService.getUserById(payload.id);
+
+      if (!user) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'User associated with token was not found',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const tokens = await this.jwtAuthService.rotateTokens(refreshToken, {
+        userId: user.user_id,
+        phoneNumber: user.phone_number,
+      });
+
+      return {
+        success: true,
+        message: 'Tokens refreshed successfully',
+        data: {
+          user,
+          tokens,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         {
           success: false,
@@ -310,22 +452,29 @@ export class UsersController {
 
   // Route 5: Onboard user with wallet, username, avatar, and transaction
   @Post('onboard')
+  @UseGuards(JwtAccessGuard)
   async onboardUser(
+    @Req() req: AuthenticatedRequest,
     @Body()
     body: {
-      userId: string;
       walletAddress: string;
       smartWalletAddress: string;
       encodedTransaction: string;
     },
   ) {
     try {
-      const { userId, walletAddress, smartWalletAddress, encodedTransaction } =
-        body;
+      const user = req.user;
+
+      if (!user) {
+        throw new HttpException(
+          { success: false, message: 'Unauthorized' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const { walletAddress, smartWalletAddress, encodedTransaction } = body;
 
       // Validate required parameters
       if (
-        !userId ||
         !walletAddress ||
         !smartWalletAddress ||
         !encodedTransaction
@@ -334,14 +483,14 @@ export class UsersController {
           {
             success: false,
             message:
-              'All parameters are required: userId, walletAddress, encodedTransaction',
+              'All parameters are required: walletAddress, encodedTransaction',
           },
           HttpStatus.BAD_REQUEST,
         );
       }
 
       const result = await this.usersService.onboardUser(
-        userId,
+        user.id,
         walletAddress,
         smartWalletAddress,
         encodedTransaction,
@@ -599,15 +748,27 @@ export class UsersController {
 
   // Route 9: Airdrop SPL token
   @Post('airdrop')
-  async airdropSplToken(@Body() body: { userId: string; amount: number }) {
+  @UseGuards(JwtAccessGuard)
+  async airdropSplToken(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { amount: number }
+  ) {
     try {
-      const { userId, amount } = body;
+      const user = req.user;
+      if (!user) {
+        throw new HttpException(
+          { success: false, message: 'Unauthorized' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const userId = user.id;
+      const { amount } = body;
 
-      if (!userId || !amount) {
+      if (!amount) {
         throw new HttpException(
           {
             success: false,
-            message: 'userId and amount are required',
+            message: 'amount is required',
           },
           HttpStatus.BAD_REQUEST,
         );
