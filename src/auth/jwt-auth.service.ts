@@ -23,7 +23,6 @@ export interface JwtTokenPair {
 export interface AccessTokenPayload {
   id: string;
   phone: string;
-  cronId?: string | null;
   jti: string;
   refreshJti: string;
   type: 'access';
@@ -32,7 +31,6 @@ export interface AccessTokenPayload {
 export interface RefreshTokenPayload {
   id: string;
   phone: string;
-  cronId?: string | null;
   jti: string;
   type: 'refresh';
 }

@@ -748,15 +748,27 @@ export class UsersController {
 
   // Route 9: Airdrop SPL token
   @Post('airdrop')
-  async airdropSplToken(@Body() body: { userId: string; amount: number }) {
+  @UseGuards(JwtAccessGuard)
+  async airdropSplToken(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { amount: number }
+  ) {
     try {
-      const { userId, amount } = body;
+      const user = req.user;
+      if (!user) {
+        throw new HttpException(
+          { success: false, message: 'Unauthorized' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const userId = user.id;
+      const { amount } = body;
 
-      if (!userId || !amount) {
+      if (!amount) {
         throw new HttpException(
           {
             success: false,
-            message: 'userId and amount are required',
+            message: 'amount is required',
           },
           HttpStatus.BAD_REQUEST,
         );
