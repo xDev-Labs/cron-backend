@@ -483,7 +483,7 @@ export class UsersController {
           {
             success: false,
             message:
-              'All parameters are required: userId, walletAddress, encodedTransaction',
+              'All parameters are required: walletAddress, encodedTransaction',
           },
           HttpStatus.BAD_REQUEST,
         );
