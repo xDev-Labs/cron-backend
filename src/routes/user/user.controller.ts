@@ -214,22 +214,37 @@ export class UsersController {
   }
 
   // Route 2: Register cron ID for a user
-  @Post('cron-id/register')
-  async registerCronId(@Body() body: { userId: string; cronId: string }) {
+  @Post('register-cron-id')
+  @UseGuards(JwtAccessGuard)
+  async registerCronId(
+    @Req() req: AuthenticatedRequest, 
+    @Body() body: {cronId: string }
+  ) {
     try {
-      const { userId, cronId } = body;
+      const payload = req.user;
 
-      if (!userId || !cronId) {
+      if (!payload) {
         throw new HttpException(
           {
             success: false,
-            message: 'userId and cronId are required',
+            message: 'Unauthorized',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const { cronId } = body;
+      
+      if (!cronId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'cronId is required',
           },
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      const result = await this.usersService.registerCronId(userId, cronId);
+      const result = await this.usersService.registerCronId(payload.sub, cronId);
 
       if (!result.success) {
         throw new HttpException(
@@ -313,7 +328,6 @@ export class UsersController {
       const tokens = await this.jwtAuthService.generateTokenPair({
         userId: result.user.user_id,
         phoneNumber: result.user.phone_number,
-        cronId: result.user.cron_id,
       });
 
       return {
@@ -367,7 +381,6 @@ export class UsersController {
       const tokens = await this.jwtAuthService.rotateTokens(refreshToken, {
         userId: user.user_id,
         phoneNumber: user.phone_number,
-        cronId: user.cron_id,
       });
 
       return {

@@ -7,7 +7,7 @@ import type { StringValue } from 'ms';
 export interface JwtUser {
   userId: string;
   phoneNumber: string;
-  cronId?: string | null;
+  // cronId?: string | null;
 }
 
 export interface JwtTokenPair {
@@ -93,7 +93,7 @@ export class JwtAuthService {
     const user: JwtUser = userOverride ?? {
       userId: payload.sub,
       phoneNumber: payload.phone,
-      cronId: payload.cronId,
+      // cronId: payload.cronId,
     };
 
     return this.generateTokenPair(user);
@@ -139,7 +139,7 @@ export class JwtAuthService {
     return {
       sub: user.userId,
       phone: user.phoneNumber,
-      cronId: user.cronId ?? null,
+      // cronId: user.cronId ?? null,
     };
   }
 
