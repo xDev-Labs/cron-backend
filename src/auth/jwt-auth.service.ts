@@ -21,7 +21,7 @@ export interface JwtTokenPair {
 }
 
 export interface AccessTokenPayload {
-  sub: string;
+  id: string;
   phone: string;
   cronId?: string | null;
   jti: string;
@@ -30,7 +30,7 @@ export interface AccessTokenPayload {
 }
 
 export interface RefreshTokenPayload {
-  sub: string;
+  id: string;
   phone: string;
   cronId?: string | null;
   jti: string;
@@ -91,7 +91,7 @@ export class JwtAuthService {
   ): Promise<JwtTokenPair> {
     const payload = await this.verifyRefreshToken(refreshToken);
     const user: JwtUser = userOverride ?? {
-      userId: payload.sub,
+      userId: payload.id,
       phoneNumber: payload.phone,
       // cronId: payload.cronId,
     };
@@ -137,7 +137,7 @@ export class JwtAuthService {
 
   private buildBaseClaims(user: JwtUser) {
     return {
-      sub: user.userId,
+      id: user.userId,
       phone: user.phoneNumber,
       // cronId: user.cronId ?? null,
     };

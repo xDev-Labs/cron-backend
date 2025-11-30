@@ -34,22 +34,22 @@ export class UsersController {
   @Get('protected/test')
   @UseGuards(JwtAccessGuard)
   async protectedPing(@Req() req: AuthenticatedRequest) {
-    const payload = req.user;
+    const user = req.user;
 
-    if (!payload) {
+    if (!user) {
       throw new HttpException(
         { success: false, message: 'Unauthorized' },
         HttpStatus.UNAUTHORIZED,
       );
     }
 
-    const user = await this.usersService.getUserById(payload.sub);
+    const user_data = await this.usersService.getUserById(user.id);
 
     return {
       success: true,
       message: 'Authenticated request successful',
       data: {
-        tokenPayload: payload,
+        tokenPayload: user,
         user,
       },
     };
@@ -221,9 +221,9 @@ export class UsersController {
     @Body() body: {cronId: string }
   ) {
     try {
-      const payload = req.user;
+      const user = req.user;
 
-      if (!payload) {
+      if (!user) {
         throw new HttpException(
           {
             success: false,
@@ -244,7 +244,7 @@ export class UsersController {
         );
       }
 
-      const result = await this.usersService.registerCronId(payload.sub, cronId);
+      const result = await this.usersService.registerCronId(user.id, cronId);
 
       if (!result.success) {
         throw new HttpException(
@@ -366,7 +366,7 @@ export class UsersController {
       }
 
       const payload = await this.jwtAuthService.verifyRefreshToken(refreshToken);
-      const user = await this.usersService.getUserById(payload.sub);
+      const user = await this.usersService.getUserById(payload.id);
 
       if (!user) {
         throw new HttpException(
@@ -452,22 +452,29 @@ export class UsersController {
 
   // Route 5: Onboard user with wallet, username, avatar, and transaction
   @Post('onboard')
+  @UseGuards(JwtAccessGuard)
   async onboardUser(
+    @Req() req: AuthenticatedRequest,
     @Body()
     body: {
-      userId: string;
       walletAddress: string;
       smartWalletAddress: string;
       encodedTransaction: string;
     },
   ) {
     try {
-      const { userId, walletAddress, smartWalletAddress, encodedTransaction } =
-        body;
+      const user = req.user;
+
+      if (!user) {
+        throw new HttpException(
+          { success: false, message: 'Unauthorized' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const { walletAddress, smartWalletAddress, encodedTransaction } = body;
 
       // Validate required parameters
       if (
-        !userId ||
         !walletAddress ||
         !smartWalletAddress ||
         !encodedTransaction
@@ -483,7 +490,7 @@ export class UsersController {
       }
 
       const result = await this.usersService.onboardUser(
-        userId,
+        user.id,
         walletAddress,
         smartWalletAddress,
         encodedTransaction,
