@@ -70,71 +70,71 @@ All responses follow this structure:
 
 ## 👤 User Endpoints
 
-### Get User by ID
+### Create User
 
 ```http
-GET /user/:id
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "User retrieved successfully",
-  "data": {
-    "user_id": "uuid",
-    "phone_number": "+1234567890",
-    "cron_id": "username",
-    "primary_address": "123 Main St",
-    "wallet_address": ["0x1234..."],
-    "avatar_url": "https://...",
-    "preferred_currency": "USD",
-    "local_currency": "USD",
-    "face_id_enabled": false,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:05:00Z"
-  }
-}
-```
-
-### Check Cron ID Availability
-
-```http
-GET /user/cron-id/check/:cronId
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Cron ID is available",
-  "data": {
-    "cronId": "username",
-    "available": true
-  }
-}
-```
-
-**Possible messages:**
-
-- `"Cron ID is available"` - Available to use
-- `"Cron ID is already taken"` - Already in use
-- `"Cron ID must be at least 3 characters long"` - Too short
-
-### Register Cron ID
-
-```http
-POST /user/cron-id/register
+POST /user/create
 ```
 
 **Request Body:**
 
 ```json
 {
-  "userId": "user-uuid",
-  "cronId": "username"
+  "phoneNumber": "+1234567890",
+  "idToken": "<firebase_id_token>"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "message": "User created successfully",
+  "data": {
+    "user":{
+      "user_id": "user-uuid",
+      "phone_number": "+1234567890",
+      "cron_id": "unique_username",
+      "primary_address": "0xabc123...",
+      "wallet_address": ["0xabc123...", "0xdef456..."],
+      "avatar_url": "https://example.com/avatar.png",
+      "preferred_currency": "USD",
+      "local_currency": "EUR",
+      "face_id_enabled": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    "isNewUser": true,
+    "token":{
+      "access_token": "jwt-access-token",
+      "refresh_token":"jwt-refresh-token",
+      "refreshTokenId":"refresh-token-uuid",
+      "expiresIn":{
+        "accessToken": "15m",
+        "refreshToken": "7d"
+      }
+    }
+}
+```
+
+### Register Cron ID
+
+```http
+POST /user/register-cron-id
+```
+
+**Request Header:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+
+```json
+{
+  "cron_id": "new_unique_username"
 }
 ```
 
@@ -144,77 +144,89 @@ POST /user/cron-id/register
 {
   "success": true,
   "message": "Cron ID registered successfully",
-  "data": {
-    // Updated user object
-  }
-}
-```
-
----
-
-## 💰 Transaction Endpoints
-
-### Get Transaction by Hash
-
-```http
-GET /transaction/:hash
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Transaction retrieved successfully",
-  "data": {
-    "transaction_hash": "0x1234567890abcdef",
-    "sender_uid": "user-uuid-1",
-    "receiver_uid": "user-uuid-2",
-    "amount": 100.5,
-    "token": [
-      {
-        "amount": "100.50",
-        "token_address": "0x1234..."
-      }
-    ],
-    "chain_id": 1,
-    "status": "completed",
+  "user": {
+    "user_id": "user-uuid",
+    "phone_number": "+1234567890",
+    "cron_id": "unique_username",
+    "primary_address": "0xabc123...",
+    "wallet_address": ["0xabc123...", "0xdef456..."],
+    "avatar_url": "https://example.com/avatar.png",
+    "preferred_currency": "USD",
+    "local_currency": "EUR",
+    "face_id_enabled": false,
     "created_at": "2024-01-01T00:00:00Z",
-    "completed_at": "2024-01-01T00:05:00Z"
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 }
 ```
 
-### Get User Transactions (with Pagination)
+### AirDrop Tokens
 
 ```http
-GET /transaction/user/:userId?page=1&limit=10
+POST /user/airdrop
 ```
 
-**Query Parameters:**
+**Request Header:**
 
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10, max: 100)
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+
+```json
+{
+  "amount": 100
+}
+```
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "message": "User transactions retrieved successfully",
+  "message": "Airdrop successful",
   "data": {
+    "signature": "<tx_hash>",
     "userId": "user-uuid",
-    "transactions": [
-      // Array of transaction objects
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "total": 25,
-      "totalPages": 3,
-      "hasNext": true,
-      "hasPrev": false
-    }
+    "amount": 100
+  }
+}
+```
+
+### User onboard
+
+```http
+POST /user/onboard
+```
+
+**Request Header:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+
+```json
+{
+  "walletAddress": "0xabc123...",
+  "smartWalletAddress": "0xdef456...",
+  "encodedTransaction": "<encoded_tx_data>"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "User onboarded successfully",
+  "data": {
+    "user": {
+      // User object
+    },
+    "signature": "<tx_hash>"
   }
 }
 ```
@@ -303,4 +315,3 @@ src/
 database/
 └── schema.sql         # Database schema
 ```
-
