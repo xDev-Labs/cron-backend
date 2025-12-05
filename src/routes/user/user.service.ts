@@ -243,9 +243,25 @@ export class UsersService {
     updateData: Partial<User>,
   ): Promise<{ success: boolean; message: string; user?: User }> {
     const supabase = this.supabaseService.getClient();
-    // Remove user_id and timestamps from update data to prevent modification
-    const { user_id, created_at, updated_at, ...allowedUpdateData } =
-      updateData;
+    // Removing sensitive fields from update data to prevent modification
+    const { 
+      user_id, 
+      phone_number,
+      cron_id,
+      primary_address,
+      wallet_address,
+      expo_push_token,
+      created_at, 
+      updated_at, 
+      ...allowedUpdateData 
+    } = updateData;
+    
+    if(allowedUpdateData == null){
+      return {
+        success: false,
+        message: 'Invalid update data',
+      };
+    }
 
     // Add updated_at timestamp
     const dataToUpdate = {

@@ -191,7 +191,23 @@ export class UsersController {
 
   // Route 1: Check if cron ID is available
   @Get('cron-id/check/:cronId')
-  async checkCronIdAvailability(@Param('cronId') cronId: string) {
+  @UseGuards(JwtAccessGuard)
+  async checkCronIdAvailability(
+    @Req() req: AuthenticatedRequest, 
+    @Param('cronId') cronId: string,
+  ) {
+    const user = req.user;
+
+    if (!user) {
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Unauthorized',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    
     try {
       const result = await this.usersService.checkCronIdAvailability(cronId);
       return {
@@ -406,9 +422,25 @@ export class UsersController {
   }
 
   // Route 4: Update user during onboarding
-  @Put(':id')
-  async updateUser(@Param('id') userId: string, @Body() updateData: any) {
+  @Put('')
+  @UseGuards(JwtAccessGuard)
+  async updateUser(
+    @Req() req: AuthenticatedRequest,    
+    @Body() updateData: any
+  ) {
+    const user = req.user;
+
+    if (!user) {
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Unauthorized',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
     try {
+      const userId = user.id;
       if (!userId) {
         throw new HttpException(
           {
